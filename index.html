@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReadBuddy - Reading Made Fun!</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- ===== SETTINGS PANEL (slide-out) ===== -->
+  <div id="settings-panel" class="settings-panel" aria-label="Reading settings">
+    <div class="settings-header">
+      <h2>Settings</h2>
+      <button id="close-settings" class="icon-btn" aria-label="Close settings">&#x2715;</button>
+    </div>
+    <div class="settings-body">
+      <div class="setting-group">
+        <label for="font-size-slider">Text Size</label>
+        <input type="range" id="font-size-slider" min="18" max="36" value="24" step="2">
+        <span id="font-size-value">24px</span>
+      </div>
+      <div class="setting-group">
+        <label for="letter-spacing-slider">Letter Spacing</label>
+        <input type="range" id="letter-spacing-slider" min="0" max="8" value="3" step="1">
+        <span id="letter-spacing-value">0.12em</span>
+      </div>
+      <div class="setting-group">
+        <label for="word-spacing-slider">Word Spacing</label>
+        <input type="range" id="word-spacing-slider" min="0" max="12" value="4" step="1">
+        <span id="word-spacing-value">0.16em</span>
+      </div>
+      <div class="setting-group">
+        <label for="line-height-slider">Line Height</label>
+        <input type="range" id="line-height-slider" min="16" max="30" value="22" step="1">
+        <span id="line-height-value">2.2</span>
+      </div>
+      <div class="setting-group">
+        <label for="speed-slider">Reading Speed</label>
+        <input type="range" id="speed-slider" min="5" max="15" value="8" step="1">
+        <span id="speed-value">Slow</span>
+      </div>
+      <div class="setting-group">
+        <label>Background Color</label>
+        <div class="color-options">
+          <button class="color-btn active" data-color="#FFF8E7" style="background:#FFF8E7;" aria-label="Cream background"></button>
+          <button class="color-btn" data-color="#E8F5E9" style="background:#E8F5E9;" aria-label="Light green background"></button>
+          <button class="color-btn" data-color="#E3F2FD" style="background:#E3F2FD;" aria-label="Light blue background"></button>
+          <button class="color-btn" data-color="#FFF3E0" style="background:#FFF3E0;" aria-label="Peach background"></button>
+          <button class="color-btn" data-color="#F3E5F5" style="background:#F3E5F5;" aria-label="Lavender background"></button>
+          <button class="color-btn" data-color="#FFFFFF" style="background:#FFFFFF;border:1px solid #ccc;" aria-label="White background"></button>
+        </div>
+      </div>
+      <div class="setting-group">
+        <label class="toggle-label">
+          <span>Reading Ruler</span>
+          <input type="checkbox" id="ruler-toggle" checked>
+          <span class="toggle-switch"></span>
+        </label>
+      </div>
+      <div class="setting-group">
+        <label class="toggle-label">
+          <span>Syllable Helper</span>
+          <input type="checkbox" id="syllable-toggle">
+          <span class="toggle-switch"></span>
+        </label>
+      </div>
+    </div>
+  </div>
+  <div id="settings-overlay" class="settings-overlay"></div>
+
+  <!-- ===== READING RULER ===== -->
+  <div id="reading-ruler" class="reading-ruler"></div>
+
+  <!-- ===== APP CONTAINER ===== -->
+  <div id="app" class="app-container">
+
+    <!-- ===== TOP BAR ===== -->
+    <header class="top-bar">
+      <div class="logo">
+        <span class="logo-icon">📖</span>
+        <span class="logo-text">ReadBuddy</span>
+      </div>
+      <div class="top-actions">
+        <button id="open-settings" class="icon-btn settings-btn" aria-label="Open settings">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ===== SCREEN: TOPIC PICKER ===== -->
+    <main id="screen-topics" class="screen active">
+      <div class="screen-content">
+        <h1 class="main-title">What do you want to read about?</h1>
+        <p class="subtitle">Pick a topic or tell me what you like!</p>
+
+        <div class="voice-input-area">
+          <div class="input-row">
+            <div class="text-input-wrapper">
+              <input type="text" id="topic-input" class="topic-input" placeholder="Type a topic..." aria-label="Type a topic">
+              <button id="topic-go-btn" class="topic-go-btn" aria-label="Go">Go</button>
+            </div>
+            <button id="voice-btn" class="voice-btn voice-btn-circle" aria-label="Say what you want to read about">
+              <svg class="mic-icon" width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+            </button>
+          </div>
+          <p id="voice-status" class="voice-status"></p>
+        </div>
+
+        <div class="topic-grid" id="topic-grid">
+          <!-- Topics injected by JS -->
+        </div>
+      </div>
+    </main>
+
+    <!-- ===== SCREEN: STORY LIST ===== -->
+    <main id="screen-stories" class="screen">
+      <div class="screen-content">
+        <button id="back-to-topics" class="back-btn" aria-label="Go back to topics">&#8592; Back</button>
+        <h1 id="stories-heading" class="section-title">Stories</h1>
+        <div id="story-list" class="story-list">
+          <!-- Story cards injected by JS -->
+        </div>
+      </div>
+    </main>
+
+    <!-- ===== SCREEN: READER ===== -->
+    <main id="screen-reader" class="screen">
+      <div class="screen-content reader-content">
+        <button id="back-to-stories" class="back-btn" aria-label="Go back to stories">&#8592; Back</button>
+        <h1 id="reader-title" class="reader-title"></h1>
+
+        <div class="reader-controls">
+          <button id="read-aloud-btn" class="control-btn" aria-label="Read aloud">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8.5v7a4.47 4.47 0 0 0 2.5-3.5zM14 3.23v2.06a6.5 6.5 0 0 1 0 13.42v2.06A8.5 8.5 0 0 0 14 3.23z"/></svg>
+            <span>Read to Me</span>
+          </button>
+          <button id="stop-btn" class="control-btn hidden" aria-label="Stop reading">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+            <span>Stop</span>
+          </button>
+        </div>
+
+        <div id="reader-body" class="reader-body">
+          <!-- Paragraphs injected by JS -->
+        </div>
+
+        <div id="word-bank" class="word-bank">
+          <h3>Word Bank</h3>
+          <div id="word-bank-list" class="word-bank-list">
+            <!-- Words injected by JS -->
+          </div>
+        </div>
+
+        <div class="reader-bottom-actions">
+          <button id="take-quiz-btn" class="primary-btn quiz-launch-btn">Take the Quiz!</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- ===== SCREEN: QUIZ ===== -->
+    <main id="screen-quiz" class="screen">
+      <div class="screen-content">
+        <h1 class="section-title quiz-title">Quiz Time!</h1>
+        <div id="quiz-body" class="quiz-body">
+          <!-- Quiz injected by JS -->
+        </div>
+        <div id="quiz-result" class="quiz-result hidden"></div>
+        <div class="quiz-actions">
+          <button id="quiz-done-btn" class="primary-btn hidden">Pick Another Story</button>
+        </div>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="stories.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
