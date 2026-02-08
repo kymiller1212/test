@@ -667,6 +667,15 @@ body {
   font-weight: 500;
 }
 
+.reader-body .word.word-helped {
+  color: #D32F2F;
+}
+
+.reader-body .word.word-helped.spoken {
+  background: #FFE0E0;
+  color: #D32F2F;
+}
+
 /* Syllable display */
 .reader-body .word .syllables {
   display: none;
