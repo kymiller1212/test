@@ -1467,9 +1467,9 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   margin-bottom: 20px;
-  padding: 24px 20px;
+  padding: 14px 16px;
   background: var(--bg-card);
   border: 1.5px solid var(--border);
   border-radius: var(--radius);
@@ -1477,18 +1477,17 @@ body {
 }
 
 .practice-prompt {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text);
   text-align: center;
-  min-height: 24px;
   letter-spacing: 0.01em;
 }
 
 .practice-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   max-width: 340px;
 }
@@ -1500,13 +1499,13 @@ body {
   justify-content: center;
   gap: 10px;
   width: 100%;
-  padding: 16px 24px;
+  padding: 13px 24px;
   border-radius: 50px;
   border: none;
   background: var(--blue);
   color: white;
   font-family: inherit;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   cursor: pointer;
   transition: var(--transition);
@@ -1546,13 +1545,13 @@ body {
   justify-content: center;
   gap: 4px;
   width: 100%;
-  padding: 14px 24px;
+  padding: 11px 24px;
   border-radius: 50px;
-  border: 2.5px solid var(--border);
+  border: 2px solid var(--border);
   background: var(--bg-card);
   color: var(--text);
   font-family: inherit;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
   transition: var(--transition);
@@ -1573,7 +1572,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 4px 12px;
   border-radius: 50px;
   border: none;
   background: transparent;
@@ -1595,9 +1594,9 @@ body {
 }
 
 .practice-feedback {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  min-height: 24px;
+  min-height: 0;
   text-align: center;
   transition: color 0.2s ease;
 }
@@ -1703,12 +1702,12 @@ body {
   box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
   margin: 0;
   border-bottom: none;
-  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
 }
 
 .reader-body.mode-word,
 .reader-body.mode-line {
-  padding-bottom: 260px;
+  padding-bottom: 220px;
 }
 
 /* --- Line-by-Line Mode Styles (visual lines) --- */
