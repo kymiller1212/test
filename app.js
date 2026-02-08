@@ -61,6 +61,16 @@
 
   // --- Init ---
   function init() {
+    // Always pick up API key from config.js if present and settings don't have one
+    if (typeof READBUDDY_CONFIG !== "undefined") {
+      if (READBUDDY_CONFIG.apiKey && !state.settings.apiKey) {
+        state.settings.apiKey = READBUDDY_CONFIG.apiKey;
+      }
+      if (READBUDDY_CONFIG.apiProvider && !state.settings.apiProvider) {
+        state.settings.apiProvider = READBUDDY_CONFIG.apiProvider;
+      }
+    }
+
     updateStreak();
     buildTopicGrid();
     setupNavigation();
@@ -216,7 +226,7 @@
     const xpForNext = state.level * 50;
     const xpPct = Math.min(100, Math.round((state.xp / xpForNext) * 100));
     const totalStories = STORIES.length;
-    const genStoriesCount = Object.values(state.generatedStories).reduce((sum, arr) => sum + arr.length, 0);
+    const genStoriesCount = Object.keys(state.generatedStories).length;
     const readCount = state.storiesRead.length;
     const streak = state.streak;
 
