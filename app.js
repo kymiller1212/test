@@ -300,10 +300,9 @@
     genBtn.addEventListener("click", () => generateStory(topicId, topicLabel));
     list.appendChild(genBtn);
 
-    // Separate stories by level
-    const level1 = stories.filter(s => !s.level || s.level === 1);
+    // Separate stories by level (generated stories with a level go into that level)
+    const level1 = stories.filter(s => (!s.level || s.level === 1));
     const level2 = stories.filter(s => s.level === 2);
-    const generated = stories.filter(s => s.id && s.id.includes(":gen-"));
 
     // Render Level 1 section
     if (level1.length > 0) {
@@ -373,23 +372,12 @@
       });
     }
 
-    // Render generated stories
-    if (generated.length > 0) {
-      const genHeader = document.createElement("div");
-      genHeader.className = "level-header";
-      genHeader.innerHTML = `
-        <div class="level-badge level-gen-badge">Custom</div>
-        <div class="level-info">
-          <div class="level-desc">AI Generated</div>
-          <div class="level-progress-text">${generated.length} ${generated.length === 1 ? 'story' : 'stories'}</div>
-        </div>
-      `;
-      list.appendChild(genHeader);
-
-      generated.forEach(story => {
-        const idx = stories.indexOf(story);
-        appendStoryCard(list, story, stories, idx);
-      });
+    // No stories at all (custom topic with no generation yet)
+    if (level1.length === 0 && level2.length === 0) {
+      const empty = document.createElement("div");
+      empty.style.cssText = "text-align:center;padding:24px 20px;color:var(--text-light);font-size:15px;";
+      empty.textContent = "Tap the button above to create stories about this topic!";
+      list.appendChild(empty);
     }
   }
 
@@ -422,100 +410,170 @@
   // --- Story Generation ---
   async function generateStory(topicId, topicLabel) {
     if (!hasAPIKey()) {
-      // Show a prompt to add API key
-      const overlay = document.createElement("div");
-      overlay.className = "level-up-overlay";
-      overlay.innerHTML = `
-        <div class="level-up-card">
-          <span class="level-star">🔑</span>
-          <div class="level-text" style="font-size:22px;">Set Up Story Maker</div>
-          <div class="level-sub" style="font-size:15px;line-height:1.5;">
-            To create stories about anything, a parent needs to add an API key in Settings.<br><br>
-            This uses OpenAI or Anthropic to write custom stories.
-          </div>
-          <button class="primary-btn" style="margin-right:8px;" onclick="document.getElementById('open-settings').click(); this.closest('.level-up-overlay').remove();">Open Settings</button>
-          <button class="primary-btn" style="background:var(--border);color:var(--text);box-shadow:0 4px 0 #ccc;margin-top:8px;" onclick="this.closest('.level-up-overlay').remove();">Cancel</button>
-        </div>
-      `;
-      document.body.appendChild(overlay);
+      showAPIKeyPrompt();
       return;
     }
 
     // Show loading state
     const loadingOverlay = document.createElement("div");
     loadingOverlay.className = "level-up-overlay";
+    loadingOverlay.id = "gen-loading";
     loadingOverlay.innerHTML = `
       <div class="level-up-card">
         <span class="level-star" style="animation: bounce-subtle 1s ease-in-out infinite;">✨</span>
-        <div class="level-text" style="font-size:22px;">Writing your story...</div>
-        <div class="level-sub">About ${topicLabel}</div>
+        <div class="level-text" style="font-size:22px;">Creating stories...</div>
+        <div class="level-sub" id="gen-status">Generating Level 1 stories about ${topicLabel}</div>
+        <div class="gen-progress-bar"><div class="gen-progress-fill" id="gen-fill"></div></div>
       </div>
     `;
     document.body.appendChild(loadingOverlay);
 
     try {
-      const story = await callAI(topicLabel);
-      if (story) {
-        const storyKey = `${topicId}:gen_${Date.now()}`;
-        story.topic = topicId;
-        story.id = storyKey;
-        story.icon = TOPICS.find((t) => t.id === topicId)?.icon || "📖";
+      const stories = [];
+      const topicIcon = TOPICS.find(t => t.id === topicId)?.icon || "✨";
 
-        state.generatedStories[storyKey] = story;
-        localStorage.setItem("rb_generated", JSON.stringify(state.generatedStories));
-
-        loadingOverlay.remove();
-
-        // Refresh story list
-        selectTopic(topicId);
-        // Automatically open the new story
-        story._id = storyKey;
-        openReader(story);
+      // Generate 3 Level 1 stories (2nd grade)
+      updateGenStatus("Generating Level 1 stories (2nd grade)...", 10);
+      const l1Stories = await callAIBatch(topicLabel, 1);
+      for (const s of l1Stories) {
+        s.topic = topicId;
+        s.level = 1;
+        s.icon = topicIcon;
+        stories.push(s);
       }
+      updateGenStatus("Level 1 complete! Generating Level 2...", 50);
+
+      // Generate 3 Level 2 stories (3rd grade)
+      const l2Stories = await callAIBatch(topicLabel, 2);
+      for (const s of l2Stories) {
+        s.topic = topicId;
+        s.level = 2;
+        s.icon = topicIcon;
+        stories.push(s);
+      }
+      updateGenStatus("All stories created!", 100);
+
+      // Save all generated stories
+      stories.forEach((story, i) => {
+        const storyKey = `${topicId}:gen-${Date.now()}-${i}`;
+        story.id = storyKey;
+        state.generatedStories[storyKey] = story;
+      });
+      localStorage.setItem("rb_generated", JSON.stringify(state.generatedStories));
+
+      // Small delay to show 100% progress
+      await new Promise(r => setTimeout(r, 500));
+      loadingOverlay.remove();
+
+      // Refresh story list and topic grid (story count updated)
+      buildTopicGrid();
+      selectTopic(topicId);
     } catch (err) {
       console.error("Story generation error:", err);
-      loadingOverlay.querySelector(".level-text").textContent = "Oops!";
-      loadingOverlay.querySelector(".level-sub").textContent =
-        "Could not create the story. Check your API key in Settings.";
+      const card = loadingOverlay.querySelector(".level-up-card");
+      card.querySelector(".level-text").textContent = "Oops!";
+      const statusEl = card.querySelector(".level-sub");
+      statusEl.style.cssText = "font-size:14px;line-height:1.5;color:var(--red-dark);";
+      statusEl.textContent = err.message || "Could not create stories. Check your API key in Settings.";
+      const bar = card.querySelector(".gen-progress-bar");
+      if (bar) bar.remove();
       const closeBtn = document.createElement("button");
       closeBtn.className = "primary-btn";
       closeBtn.textContent = "OK";
       closeBtn.style.marginTop = "16px";
       closeBtn.onclick = () => loadingOverlay.remove();
-      loadingOverlay.querySelector(".level-up-card").appendChild(closeBtn);
+      card.appendChild(closeBtn);
     }
   }
 
-  async function callAI(topicLabel) {
+  function showAPIKeyPrompt() {
+    const overlay = document.createElement("div");
+    overlay.className = "level-up-overlay";
+    overlay.innerHTML = `
+      <div class="level-up-card">
+        <span class="level-star">🔑</span>
+        <div class="level-text" style="font-size:22px;">Set Up Story Maker</div>
+        <div class="level-sub" style="font-size:15px;line-height:1.5;">
+          To create stories about anything, a parent needs to add an API key in Settings.<br><br>
+          This uses OpenAI or Anthropic to write custom stories.
+        </div>
+        <button class="primary-btn" style="margin-right:8px;" onclick="document.getElementById('open-settings').click(); this.closest('.level-up-overlay').remove();">Open Settings</button>
+        <button class="primary-btn" style="background:var(--border);color:var(--text);box-shadow:0 4px 0 #ccc;margin-top:8px;" onclick="this.closest('.level-up-overlay').remove();">Cancel</button>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+
+  function updateGenStatus(msg, pct) {
+    const el = document.getElementById("gen-status");
+    const fill = document.getElementById("gen-fill");
+    if (el) el.textContent = msg;
+    if (fill) fill.style.width = pct + "%";
+  }
+
+  async function callAIBatch(topicLabel, level) {
     const provider = state.settings.apiProvider || "openai";
     const apiKey = state.settings.apiKey;
 
-    const systemPrompt = `You are a children's reading content creator specializing in materials for children with dyslexia. Create a short reading passage for a 3rd grader reading at a 2nd grade level.
+    const readingLevel = level === 1 ? "2nd grade" : "3rd grade";
+    const sentenceLength = level === 1 ? "5-10 words" : "8-15 words";
+    const paragraphs = level === 1 ? "4 short paragraphs (2-3 sentences each)" : "5 paragraphs (2-4 sentences each)";
+    const complexity = level === 1 ? "Use only simple, common words" : "Use grade-appropriate vocabulary with some challenging words";
 
-Rules:
-- Use simple, common words (2nd grade reading level)
-- Keep sentences SHORT (5-10 words each)
-- Use 4 short paragraphs (2-3 sentences each)
-- Avoid complex or multi-syllable words when possible
+    const systemPrompt = `You are a children's reading content creator specializing in materials for children with dyslexia. Create 3 different short reading passages about the given topic.
+
+Rules for each story:
+- Reading level: ${readingLevel}
+- ${complexity}
+- Keep sentences ${sentenceLength}
+- Use ${paragraphs}
 - Make it fun, engaging, and age-appropriate
 - Be factually accurate when discussing real people/things
+- Each story should cover a DIFFERENT aspect of the topic
 
 Respond in this exact JSON format:
 {
-  "title": "Story Title Here",
-  "content": ["Paragraph 1 text.", "Paragraph 2 text.", "Paragraph 3 text.", "Paragraph 4 text."],
-  "words": ["word1", "word2", "word3", "word4", "word5", "word6", "word7", "word8"],
-  "quiz": [
-    {"q": "Question 1?", "choices": ["A", "B", "C"], "answer": 0},
-    {"q": "Question 2?", "choices": ["A", "B", "C"], "answer": 1},
-    {"q": "Question 3?", "choices": ["A", "B", "C"], "answer": 2}
+  "stories": [
+    {
+      "title": "Story 1 Title",
+      "content": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."],
+      "words": ["word1", "word2", "word3", "word4", "word5", "word6", "word7", "word8"],
+      "quiz": [
+        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 0},
+        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 1},
+        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 2}
+      ]
+    },
+    {
+      "title": "Story 2 Title",
+      "content": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."],
+      "words": ["word1", "word2", "word3", "word4", "word5", "word6", "word7", "word8"],
+      "quiz": [
+        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 0},
+        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 1},
+        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 2}
+      ]
+    },
+    {
+      "title": "Story 3 Title",
+      "content": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."],
+      "words": ["word1", "word2", "word3", "word4", "word5", "word6", "word7", "word8"],
+      "quiz": [
+        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 0},
+        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 1},
+        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 2}
+      ]
+    }
   ]
 }
 
-The "words" array should contain 8 key vocabulary words from the passage.
-The "quiz" array should have 3 simple comprehension questions with 3 choices each. "answer" is the 0-based index of the correct choice.`;
+Each "words" array: 8 key vocabulary words from the passage.
+Each "quiz" array: 3 comprehension questions with 3 choices. "answer" is the 0-based index.
+IMPORTANT: Return ONLY valid JSON, no other text.`;
 
-    const userPrompt = `Write a fun reading passage about: ${topicLabel}`;
+    const userPrompt = `Write 3 different ${readingLevel} reading level passages about: ${topicLabel}`;
+
+    let text;
 
     if (provider === "openai") {
       const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -531,20 +589,25 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
             { role: "user", content: userPrompt },
           ],
           temperature: 0.8,
-          max_tokens: 1000,
+          max_tokens: 4000,
+          response_format: { type: "json_object" },
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errBody = await response.text();
+        console.error("API response:", errBody);
+        let errMsg = `OpenAI API error (${response.status})`;
+        try {
+          const errJson = JSON.parse(errBody);
+          if (errJson.error?.message) errMsg = errJson.error.message;
+        } catch (_) {}
+        throw new Error(errMsg);
       }
 
       const data = await response.json();
-      const text = data.choices[0].message.content;
-      return parseStoryJSON(text);
+      text = data.choices[0].message.content;
     } else if (provider === "anthropic") {
-      // Anthropic API - using proxy approach since direct CORS isn't supported
-      // Users would need to set up a simple proxy or use the API through a backend
       const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -554,31 +617,61 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
           "anthropic-dangerous-direct-browser-access": "true",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
+          model: "claude-sonnet-4-5-20250929",
+          max_tokens: 4000,
           system: systemPrompt,
           messages: [{ role: "user", content: userPrompt }],
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errBody = await response.text();
+        console.error("API response:", errBody);
+        let errMsg = `Anthropic API error (${response.status})`;
+        try {
+          const errJson = JSON.parse(errBody);
+          if (errJson.error?.message) errMsg = errJson.error.message;
+        } catch (_) {}
+        throw new Error(errMsg);
       }
 
       const data = await response.json();
-      const text = data.content[0].text;
-      return parseStoryJSON(text);
+      text = data.content[0].text;
     }
+
+    return parseBatchJSON(text);
   }
 
+  function parseBatchJSON(text) {
+    let jsonStr = text;
+    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) jsonStr = jsonMatch[1];
+    const objMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (objMatch) jsonStr = objMatch[0];
+
+    const parsed = JSON.parse(jsonStr);
+    if (parsed.stories && Array.isArray(parsed.stories)) {
+      return parsed.stories.map(s => ({
+        title: s.title,
+        content: s.content,
+        words: s.words,
+        quiz: s.quiz,
+      }));
+    }
+    // Fallback: if the AI returned a single story
+    if (parsed.title) {
+      return [{ title: parsed.title, content: parsed.content, words: parsed.words, quiz: parsed.quiz }];
+    }
+    throw new Error("Unexpected response format from AI");
+  }
+
+  // Keep old single-story parser for backwards compat
   function parseStoryJSON(text) {
-    // Extract JSON from the response (might be wrapped in markdown code blocks)
     let jsonStr = text;
     const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (jsonMatch) {
       jsonStr = jsonMatch[1];
     }
-    // Try to find JSON object
     const objMatch = jsonStr.match(/\{[\s\S]*\}/);
     if (objMatch) {
       jsonStr = objMatch[0];
@@ -727,8 +820,7 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
   }
 
   function handleCustomTopic(topicName) {
-    // Create a custom topic entry if it doesn't exist
-    const topicId = topicName.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
+    const topicId = topicName.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, "-").trim();
 
     // Check if topic already exists in TOPICS
     if (!TOPICS.find((t) => t.id === topicId)) {
@@ -741,25 +833,24 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
       buildTopicGrid();
     }
 
-    // Select and try to generate
-    state.currentTopic = topicId;
-    const topicLabel = topicName;
-    $("#stories-heading").textContent = `✨ ${topicLabel} Stories`;
-
     // Check for existing generated stories
     const generatedKeys = Object.keys(state.generatedStories).filter(
       (k) => k.startsWith(topicId + ":")
     );
-    const generatedStories = generatedKeys.map(
-      (k) => state.generatedStories[k]
-    );
 
-    renderStoryList(generatedStories, topicId, topicLabel);
-    showScreen("stories");
-
-    // Auto-generate if API key is present and no stories yet
-    if (generatedStories.length === 0 && hasAPIKey()) {
-      generateStory(topicId, topicLabel);
+    if (generatedKeys.length > 0) {
+      // Already have stories, just show them
+      selectTopic(topicId);
+    } else if (hasAPIKey()) {
+      // No stories yet, generate all 6
+      state.currentTopic = topicId;
+      generateStory(topicId, topicName);
+    } else {
+      // No API key, show the story list with just the generate button
+      state.currentTopic = topicId;
+      $("#stories-heading").textContent = `✨ ${topicName} Stories`;
+      renderStoryList([], topicId, topicName);
+      showScreen("stories");
     }
   }
 
