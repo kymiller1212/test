@@ -452,7 +452,12 @@
     // Step navigation
     document.getElementById("ob-go-1").onclick = () => updateObStep(1);
     document.getElementById("ob-go-2").onclick = () => handleObAPIKey();
-    document.getElementById("ob-skip-api").onclick = () => updateObStep(2);
+    document.getElementById("ob-skip-api").onclick = () => {
+      // No API key → skip interests/generation, go straight to ready with default stories
+      updateObStep(4);
+      document.getElementById("ob-ready-msg").textContent = "You're all set with 54 built-in stories! You can add an API key in Settings anytime to generate custom stories.";
+      document.getElementById("ob-ready-topics").innerHTML = "";
+    };
     document.getElementById("ob-go-3").onclick = () => handleObGenerate();
     document.getElementById("ob-start-reading").onclick = () => finishOnboarding();
 
