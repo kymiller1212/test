@@ -1685,6 +1685,7 @@ body {
   padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
 }
 
+.reader-body.mode-word,
 .reader-body.mode-line {
   padding-bottom: 260px;
 }

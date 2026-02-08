@@ -1504,6 +1504,7 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
       stopBtn.classList.add("hidden");
       practiceProgress.classList.remove("hidden");
       practiceStatus.classList.remove("hidden");
+      practiceStatus.classList.add("bottom-fixed");
       wordBank.classList.add("hidden");
       readerBody.classList.add("mode-word");
       initWordMode();
