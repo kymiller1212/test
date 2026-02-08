@@ -90,6 +90,27 @@
       firebaseDB = firebase.firestore();
       firebaseAuth = firebase.auth();
 
+      // Check for redirect result first (runs after Google sign-in redirect)
+      firebaseAuth.getRedirectResult().then((result) => {
+        if (result && result.user) {
+          firebaseUser = result.user;
+          updateSyncUI();
+          loadFromCloud();
+        }
+      }).catch((err) => {
+        console.warn("Redirect sign-in error:", err);
+        const statusEl = document.getElementById("sync-status");
+        if (statusEl) {
+          let msg = "Sign-in failed.";
+          if (err.code === "auth/unauthorized-domain") {
+            msg = "Add this domain in Firebase > Authentication > Authorized domains.";
+          } else if (err.code) {
+            msg = `Error: ${err.code}`;
+          }
+          statusEl.innerHTML = `<span style="color:var(--red);font-size:13px;line-height:1.4;">${msg}</span>`;
+        }
+      });
+
       // Listen for auth state changes
       firebaseAuth.onAuthStateChanged((user) => {
         firebaseUser = user;
@@ -125,23 +146,8 @@
   function signInWithGoogle() {
     if (!firebaseAuth) return;
     const provider = new firebase.auth.GoogleAuthProvider();
-    firebaseAuth.signInWithPopup(provider).catch((err) => {
-      console.error("Sign-in error:", err);
-      const statusEl = document.getElementById("sync-status");
-      if (statusEl) {
-        let msg = "Sign-in failed.";
-        if (err.code === "auth/unauthorized-domain") {
-          msg = "This domain isn't authorized in Firebase. Add it under Authentication > Settings > Authorized domains.";
-        } else if (err.code === "auth/popup-blocked") {
-          msg = "Pop-up was blocked. Allow pop-ups and try again.";
-        } else if (err.code === "auth/popup-closed-by-user") {
-          msg = "Sign-in window was closed.";
-        } else if (err.code) {
-          msg = `Error: ${err.code}`;
-        }
-        statusEl.innerHTML = `<span style="color:var(--red);font-size:13px;line-height:1.4;">${msg}</span>`;
-      }
-    });
+    // Use redirect instead of popup — more reliable on mobile and avoids pop-up blockers
+    firebaseAuth.signInWithRedirect(provider);
   }
 
   function signOutFirebase() {
