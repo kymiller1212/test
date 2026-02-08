@@ -658,7 +658,7 @@ body {
   position: relative;
 }
 
-.syllable-mode .reader-body .word:hover .syllables {
+.syllable-mode .reader-body .word.syllable-shown .syllables {
   display: block;
   animation: fadeIn 0.2s ease;
 }

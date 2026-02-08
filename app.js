@@ -18,8 +18,8 @@
     isSpeaking: false,
     speechUtterance: null,
     recognition: null,
-    rulerEnabled: true,
-    syllableMode: false,
+    rulerEnabled: false,
+    syllableMode: true,
     settings: JSON.parse(localStorage.getItem("rb_settings") || "null") || {
       fontSize: 24,
       letterSpacing: 3,
@@ -27,8 +27,8 @@
       lineHeight: 22,
       speed: 8,
       bgColor: "#FFF8E7",
-      rulerEnabled: true,
-      syllableMode: false,
+      rulerEnabled: false,
+      syllableMode: true,
       apiKey: (typeof READBUDDY_CONFIG !== "undefined" && READBUDDY_CONFIG.apiKey) || "",
       apiProvider: (typeof READBUDDY_CONFIG !== "undefined" && READBUDDY_CONFIG.apiProvider) || "openai"
     },
@@ -684,7 +684,7 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
           span.className = "word";
           span.textContent = w;
 
-          // Syllable data
+          // Syllable data (always add if syllable mode on, but hidden until tapped)
           if (state.syllableMode) {
             const syllDiv = document.createElement("span");
             syllDiv.className = "syllables";
@@ -692,8 +692,8 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
             span.appendChild(syllDiv);
           }
 
-          // Click to hear word
-          span.addEventListener("click", () => speakWord(span, w));
+          // Click handler: two-tap behavior when syllable mode is on
+          span.addEventListener("click", () => handleWordTap(span, w));
           pEl.appendChild(span);
         }
       });
@@ -831,6 +831,27 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
     state.isSpeaking = true;
     state.speechUtterance = utterance;
     speechSynthesis.speak(utterance);
+  }
+
+  // Two-tap word interaction: first tap shows syllables, second speaks + hides
+  function handleWordTap(span, word) {
+    if (state.syllableMode) {
+      const syllDiv = span.querySelector(".syllables");
+      if (syllDiv) {
+        if (span.classList.contains("syllable-shown")) {
+          // Second tap: speak the word and hide syllables
+          span.classList.remove("syllable-shown");
+          speakWord(span, word);
+        } else {
+          // First tap: show syllables only (clear any other shown syllables first)
+          $$(".word.syllable-shown").forEach((el) => el.classList.remove("syllable-shown"));
+          span.classList.add("syllable-shown");
+        }
+        return;
+      }
+    }
+    // No syllable mode or no syllable div: speak immediately
+    speakWord(span, word);
   }
 
   function speakWord(span, word) {
@@ -1005,40 +1026,202 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
     });
   }
 
-  // --- Syllable Breakdown (simple heuristic) ---
+  // --- Syllable Breakdown (morphological + phonetic) ---
+  const SYLLABLE_MAP = {
+    // Compound words from our stories
+    buckeye: "buck · eye", buckeyes: "buck · eyes",
+    football: "foot · ball", footballs: "foot · balls",
+    touchdown: "touch · down", touchdowns: "touch · downs",
+    quarterback: "quar · ter · back", quarterbacks: "quar · ter · backs",
+    horseshoe: "horse · shoe", horseshoes: "horse · shoes",
+    halftime: "half · time",
+    everyone: "ev · ry · one", everything: "ev · ry · thing",
+    something: "some · thing", sometimes: "some · times",
+    someone: "some · one", somewhere: "some · where",
+    lightsaber: "light · sa · ber", lightsabers: "light · sa · bers",
+    bodybuilder: "bod · y · build · er",
+    teammates: "team · mates", teammate: "team · mate",
+    teamwork: "team · work",
+    kickoff: "kick · off", kickoffs: "kick · offs",
+    sideline: "side · line", sidelines: "side · lines",
+    comeback: "come · back", comebacks: "come · backs",
+    overtime: "o · ver · time",
+    scoreboard: "score · board",
+    endzone: "end · zone",
+    inside: "in · side", outside: "out · side",
+    without: "with · out", within: "with · in",
+    into: "in · to",
+    together: "to · geth · er",
+    himself: "him · self", herself: "her · self",
+    itself: "it · self", myself: "my · self", yourself: "your · self",
+    everybody: "ev · ry · bod · y",
+    anybody: "an · y · bod · y",
+    nobody: "no · bod · y",
+    anything: "an · y · thing", nothing: "noth · ing",
+    cockpit: "cock · pit",
+    downfield: "down · field", backfield: "back · field",
+    midfield: "mid · field",
+    playground: "play · ground", backyard: "back · yard",
+    popcorn: "pop · corn", classroom: "class · room",
+    lineman: "line · man", linemen: "line · men",
+    linebacker: "line · back · er", linebackers: "line · back · ers",
+    offensive: "of · fen · sive", defensive: "de · fen · sive",
+    contagious: "con · ta · gious",
+    scrimmage: "scrim · mage",
+    millennium: "mil · len · ni · um",
+    chewbacca: "chew · bac · ca",
+    immaculate: "im · mac · u · late",
+    buccaneers: "buc · ca · neers",
+    nashville: "nash · ville",
+    equanimeous: "eq · ua · nim · e · ous",
+    stormtrooper: "storm · troop · er", stormtroopers: "storm · troop · ers",
+    compartment: "com · part · ment", compartments: "com · part · ments",
+    adventure: "ad · ven · ture", adventures: "ad · ven · tures",
+    character: "char · ac · ter", characters: "char · ac · ters",
+    exciting: "ex · ci · ting", amazing: "a · ma · zing",
+    believing: "be · liev · ing",
+    catching: "catch · ing", throwing: "throw · ing",
+    fighting: "fight · ing", watching: "watch · ing",
+    marching: "march · ing", practicing: "prac · ti · cing",
+    wrestling: "wres · tling",
+    celebrate: "cel · e · brate", celebrates: "cel · e · brates",
+    dangerous: "dan · ger · ous",
+    columbus: "co · lum · bus",
+    tradition: "tra · di · tion", traditions: "tra · di · tions",
+    champion: "cham · pi · on", champions: "cham · pi · ons",
+    championship: "cham · pi · on · ship",
+    reception: "re · cep · tion",
+    receiver: "re · ceiv · er", receivers: "re · ceiv · ers",
+    lateral: "lat · er · al",
+    miracle: "mir · a · cle",
+    popular: "pop · u · lar",
+    stadium: "sta · di · um", stadiums: "sta · di · ums",
+    wonderful: "won · der · ful", beautiful: "beau · ti · ful",
+    athletic: "ath · let · ic",
+    different: "dif · fer · ent",
+    beginning: "be · gin · ning",
+    important: "im · por · tant",
+    remember: "re · mem · ber",
+    invented: "in · ven · ted",
+    destroyed: "de · stroyed",
+    millions: "mil · lions",
+    favorite: "fa · vor · ite",
+    celebrate: "cel · e · brate",
+    excited: "ex · ci · ted"
+  };
+
   function syllabify(word) {
     const clean = word.replace(/[^a-zA-Z]/g, "").toLowerCase();
-    if (clean.length <= 2) return clean;
+    if (clean.length <= 3) return clean;
 
+    // Check dictionary first
+    if (SYLLABLE_MAP[clean]) return SYLLABLE_MAP[clean];
+
+    // Phonetic syllabification
+    return syllabifyPhonetic(clean);
+  }
+
+  function syllabifyPhonetic(word) {
     const vowels = "aeiouy";
-    const syllables = [];
-    let current = "";
+    const isV = (ch) => vowels.includes(ch);
 
-    for (let i = 0; i < clean.length; i++) {
-      current += clean[i];
-      const isVowel = vowels.includes(clean[i]);
-      const nextIsVowel =
-        i + 1 < clean.length && vowels.includes(clean[i + 1]);
-      const nextIsConsonant =
-        i + 1 < clean.length && !vowels.includes(clean[i + 1]);
+    // Vowel pairs that form one sound
+    const vPairs = new Set(["ai","ay","ea","ee","ei","ey","oa","oo","ou","ow","ue","au","aw","oi","oy","ew","ie"]);
 
-      if (isVowel && nextIsConsonant && i + 2 < clean.length) {
-        // Check if we should break after the consonant
-        const afterNext =
-          i + 2 < clean.length && vowels.includes(clean[i + 2]);
-        if (afterNext && current.length > 1) {
-          syllables.push(current);
-          current = "";
+    // Valid syllable-starting consonant pairs
+    const onsets2 = new Set(["bl","br","ch","cl","cr","dr","dw","fl","fr","gl","gn","gr","kn","ph","pl","pr","qu","sc","sh","sk","sl","sm","sn","sp","st","sw","th","tr","tw","wh","wr"]);
+
+    // Valid syllable-starting consonant triples
+    const onsets3 = new Set(["scr","shr","spl","spr","squ","str","thr"]);
+
+    // Find vowel nuclei
+    const nuclei = [];
+    let i = 0;
+    while (i < word.length) {
+      if (isV(word[i])) {
+        let end = i + 1;
+        if (i + 1 < word.length && vPairs.has(word[i] + word[i + 1])) {
+          end = i + 2;
         }
+        nuclei.push({ s: i, e: end });
+        i = end;
+      } else {
+        i++;
       }
     }
 
-    if (current) syllables.push(current);
+    // Handle silent final e (but not -Cle patterns like ta-ble)
+    if (nuclei.length > 1) {
+      const last = nuclei[nuclei.length - 1];
+      if (last.s === word.length - 1 && word[last.s] === "e" && last.s >= 1 && !isV(word[last.s - 1])) {
+        const isCLE = last.s >= 2 && word[last.s - 1] === "l" && !isV(word[last.s - 2]);
+        if (!isCLE) nuclei.pop();
+      }
+    }
 
-    // If only one syllable found, return as-is
-    if (syllables.length <= 1) return clean;
+    if (nuclei.length <= 1) return word;
 
-    return syllables.join(" · ");
+    // Build syllables using Maximal Onset Principle
+    const syls = [];
+    let start = 0;
+
+    for (let n = 0; n < nuclei.length - 1; n++) {
+      const cStart = nuclei[n].e;
+      const cEnd = nuclei[n + 1].s;
+      const cluster = word.slice(cStart, cEnd);
+      const cLen = cluster.length;
+      let splitAt = 0;
+
+      if (cLen >= 1) {
+        // Find longest valid onset from the right
+        if (cLen >= 3 && onsets3.has(cluster.slice(cLen - 3))) {
+          splitAt = cLen - 3;
+        } else if (cLen >= 2 && onsets2.has(cluster.slice(cLen - 2))) {
+          splitAt = cLen - 2;
+        } else {
+          splitAt = cLen - 1;
+        }
+
+        // Don't break ck, ng, nk digraphs
+        if (splitAt > 0 && splitAt < cLen) {
+          const left = cluster[splitAt - 1];
+          const right = cluster[splitAt];
+          if ((left === "c" && right === "k") ||
+              (left === "n" && right === "g") ||
+              (left === "n" && right === "k") ||
+              (left === "g" && right === "h")) {
+            splitAt++;
+          }
+        }
+      }
+
+      syls.push(word.slice(start, cStart + splitAt));
+      start = cStart + splitAt;
+    }
+    syls.push(word.slice(start));
+
+    // Merge syllables without vowels into neighbors
+    const result = [];
+    for (let j = 0; j < syls.length; j++) {
+      if (!syls[j]) continue;
+      if (result.length > 0 && !/[aeiouy]/.test(syls[j])) {
+        result[result.length - 1] += syls[j];
+      } else {
+        result.push(syls[j]);
+      }
+    }
+
+    // Fix -Cle endings: move consonant from prev syllable to "le"
+    if (result.length >= 2) {
+      const last = result[result.length - 1];
+      const prev = result[result.length - 2];
+      if (last === "le" && prev.length > 1 && !isV(prev[prev.length - 1])) {
+        result[result.length - 1] = prev[prev.length - 1] + "le";
+        result[result.length - 2] = prev.slice(0, -1);
+      }
+    }
+
+    return result.length > 1 ? result.join(" · ") : word;
   }
 
   // --- Settings ---
@@ -1362,7 +1545,7 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
             syllDiv.textContent = syllabify(w);
             span.appendChild(syllDiv);
           }
-          span.addEventListener("click", () => speakWord(span, w));
+          span.addEventListener("click", () => handleWordTap(span, w));
           pEl.appendChild(span);
         }
       });
@@ -1755,7 +1938,13 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
             const span = document.createElement("span");
             span.className = "word";
             span.textContent = w;
-            span.addEventListener("click", () => speakWord(span, w));
+            if (state.syllableMode) {
+              const syllDiv = document.createElement("span");
+              syllDiv.className = "syllables";
+              syllDiv.textContent = syllabify(w);
+              span.appendChild(syllDiv);
+            }
+            span.addEventListener("click", () => handleWordTap(span, w));
             lineGroup.appendChild(span);
             lineWords.push(w);
           }
