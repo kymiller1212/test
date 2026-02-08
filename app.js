@@ -29,10 +29,20 @@
       bgColor: "#FFF8E7",
       rulerEnabled: true,
       syllableMode: false,
-      apiKey: "",
-      apiProvider: "openai"
+      apiKey: (typeof READBUDDY_CONFIG !== "undefined" && READBUDDY_CONFIG.apiKey) || "",
+      apiProvider: (typeof READBUDDY_CONFIG !== "undefined" && READBUDDY_CONFIG.apiProvider) || "openai"
     },
-    generatedStories: JSON.parse(localStorage.getItem("rb_generated") || "{}")
+    generatedStories: JSON.parse(localStorage.getItem("rb_generated") || "{}"),
+    readingMode: "normal",
+    practiceRecognition: null,
+    practiceListening: false,
+    practiceWords: [],
+    practiceLines: [],
+    wordIndex: 0,
+    lineIndex: 0,
+    practiceAttempts: 0,
+    practiceTimers: [],
+    helpInProgress: false
   };
 
   // --- DOM Refs ---
@@ -56,6 +66,7 @@
     applySettings();
     updateXPDisplay();
     addAPISettingsUI();
+    setupModeSelector();
   }
 
   // --- XP & Gamification ---
@@ -188,10 +199,12 @@
   function setupNavigation() {
     $("#back-to-topics").addEventListener("click", () => {
       stopSpeaking();
+      cleanupPracticeMode();
       showScreen("topics");
     });
     $("#back-to-stories").addEventListener("click", () => {
       stopSpeaking();
+      cleanupPracticeMode();
       showScreen("stories");
     });
     $("#quiz-done-btn").addEventListener("click", () => {
@@ -705,6 +718,9 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
     // Setup read aloud
     setupReadAloud(story);
 
+    // Reset reading mode to normal
+    resetMode();
+
     // Mark as read
     const storyId = story._id || `${story.topic}:0`;
     if (!state.storiesRead.includes(storyId)) {
@@ -806,8 +822,8 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
       if (stopBtn) stopBtn.classList.add("hidden");
       if (readBtn) readBtn.classList.remove("hidden");
 
-      // After reading, show quiz
-      if (story.quiz && story.quiz.length > 0) {
+      // After reading, show quiz (only in normal mode)
+      if (story.quiz && story.quiz.length > 0 && state.readingMode === "normal") {
         setTimeout(() => showQuiz(story), 800);
       }
     };
@@ -1175,6 +1191,675 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
 
   function saveSettings() {
     localStorage.setItem("rb_settings", JSON.stringify(state.settings));
+  }
+
+  // --- Fuzzy Pronunciation Matching ---
+  function levenshteinDistance(a, b) {
+    const m = a.length, n = b.length;
+    const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+    for (let i = 0; i <= m; i++) dp[i][0] = i;
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        if (a[i - 1] === b[j - 1]) dp[i][j] = dp[i - 1][j - 1];
+        else dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+      }
+    }
+    return dp[m][n];
+  }
+
+  function normalizeWord(w) {
+    return w.replace(/[^a-z']/gi, "").toLowerCase();
+  }
+
+  function fuzzyWordMatch(spoken, target) {
+    const s = normalizeWord(spoken);
+    const t = normalizeWord(target);
+    if (!s || !t) return false;
+    if (s === t) return true;
+
+    // Check similarity ratio
+    const dist = levenshteinDistance(s, t);
+    const maxLen = Math.max(s.length, t.length);
+    const similarity = 1 - dist / maxLen;
+
+    // Generous threshold for dyslexia
+    const threshold = t.length <= 4 ? 0.55 : 0.5;
+    if (similarity >= threshold) return true;
+
+    // Common dyslexia letter swaps
+    const dyslexiaSwaps = [
+      [/b/g, "d"], [/d/g, "b"],
+      [/p/g, "q"], [/q/g, "p"],
+      [/m/g, "w"], [/w/g, "m"],
+      [/n/g, "u"], [/u/g, "n"],
+      [/th/g, "f"], [/f/g, "th"],
+    ];
+
+    for (const [from, to] of dyslexiaSwaps) {
+      const swapped = s.replace(from, to);
+      if (swapped === t) return true;
+    }
+
+    // Check if spoken words contain the target
+    const spokenWords = spoken.toLowerCase().split(/\s+/);
+    for (const sw of spokenWords) {
+      const ns = normalizeWord(sw);
+      if (ns === t) return true;
+      const d = levenshteinDistance(ns, t);
+      if (1 - d / Math.max(ns.length, t.length) >= 0.6) return true;
+    }
+
+    return false;
+  }
+
+  function fuzzyLineMatch(spoken, targetWords) {
+    const spokenWords = spoken.toLowerCase().split(/\s+/).map(normalizeWord).filter(Boolean);
+    const targets = targetWords.map(normalizeWord).filter(Boolean);
+
+    if (targets.length === 0) return true;
+
+    let matched = 0;
+    const usedSpoken = new Set();
+
+    for (const t of targets) {
+      for (let i = 0; i < spokenWords.length; i++) {
+        if (usedSpoken.has(i)) continue;
+        if (fuzzyWordMatch(spokenWords[i], t)) {
+          matched++;
+          usedSpoken.add(i);
+          break;
+        }
+      }
+    }
+
+    // 65% of target words matched is a pass
+    return matched / targets.length >= 0.65;
+  }
+
+  // --- Mode Selector ---
+  function setupModeSelector() {
+    $$(".mode-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const mode = btn.dataset.mode;
+        switchMode(mode);
+      });
+    });
+  }
+
+  function switchMode(mode) {
+    state.readingMode = mode;
+
+    // Update UI buttons
+    $$(".mode-btn").forEach((b) => b.classList.remove("active"));
+    const activeBtn = $(`.mode-btn[data-mode="${mode}"]`);
+    if (activeBtn) activeBtn.classList.add("active");
+
+    // Clean up previous mode
+    cleanupPracticeMode();
+
+    const readerBody = $("#reader-body");
+    readerBody.classList.remove("mode-word", "mode-line");
+
+    // Show/hide appropriate controls
+    const readAloudBtn = $("#read-aloud-btn");
+    const stopBtn = $("#stop-btn");
+    const practiceProgress = $("#practice-progress");
+    const practiceStatus = $("#practice-status");
+    const wordBank = $("#word-bank");
+
+    if (mode === "normal") {
+      readAloudBtn.classList.remove("hidden");
+      practiceProgress.classList.add("hidden");
+      practiceStatus.classList.add("hidden");
+      wordBank.classList.remove("hidden");
+      if (state.currentStory) rebuildReaderBody(state.currentStory);
+    } else if (mode === "word") {
+      stopSpeaking();
+      readAloudBtn.classList.add("hidden");
+      stopBtn.classList.add("hidden");
+      practiceProgress.classList.remove("hidden");
+      practiceStatus.classList.remove("hidden");
+      wordBank.classList.add("hidden");
+      readerBody.classList.add("mode-word");
+      initWordMode();
+    } else if (mode === "line") {
+      stopSpeaking();
+      readAloudBtn.classList.add("hidden");
+      stopBtn.classList.add("hidden");
+      practiceProgress.classList.remove("hidden");
+      practiceStatus.classList.remove("hidden");
+      wordBank.classList.add("hidden");
+      readerBody.classList.add("mode-line");
+      initLineMode();
+    }
+  }
+
+  function rebuildReaderBody(story) {
+    const body = $("#reader-body");
+    body.innerHTML = "";
+
+    story.content.forEach((para, pIdx) => {
+      const pEl = document.createElement("div");
+      pEl.className = "paragraph";
+      pEl.dataset.pindex = pIdx;
+
+      const words = para.split(/(\s+)/);
+      words.forEach((w) => {
+        if (/^\s+$/.test(w)) {
+          pEl.appendChild(document.createTextNode(w));
+        } else {
+          const span = document.createElement("span");
+          span.className = "word";
+          span.textContent = w;
+          if (state.syllableMode) {
+            const syllDiv = document.createElement("span");
+            syllDiv.className = "syllables";
+            syllDiv.textContent = syllabify(w);
+            span.appendChild(syllDiv);
+          }
+          span.addEventListener("click", () => speakWord(span, w));
+          pEl.appendChild(span);
+        }
+      });
+
+      body.appendChild(pEl);
+    });
+  }
+
+  function cleanupPracticeMode() {
+    if (state.practiceRecognition) {
+      try { state.practiceRecognition.abort(); } catch (e) {}
+      state.practiceRecognition = null;
+    }
+    state.practiceListening = false;
+    state.helpInProgress = false;
+
+    // Clear all pending practice timers
+    state.practiceTimers.forEach((t) => clearTimeout(t));
+    state.practiceTimers = [];
+
+    // Remove complete banners
+    $$(".practice-complete-banner").forEach((b) => b.remove());
+
+    // Reset mic button
+    const micBtn = $("#practice-mic-btn");
+    if (micBtn) micBtn.classList.remove("recording");
+  }
+
+  // --- Word-by-Word Mode ---
+  function initWordMode() {
+    const allWords = Array.from($$("#reader-body .word"));
+    state.practiceWords = allWords;
+    state.wordIndex = 0;
+    state.practiceAttempts = 0;
+
+    allWords.forEach((w) => {
+      w.classList.remove("word-current", "word-done", "word-correct-flash", "word-wrong-flash");
+    });
+
+    if (allWords.length > 0) {
+      allWords[0].classList.add("word-current");
+      allWords[0].scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    updatePracticeProgress(0, allWords.length);
+    updatePracticePrompt();
+    setupPracticeMic();
+    setupPracticeHearBtn();
+  }
+
+  function updatePracticeProgress(current, total) {
+    const pct = total > 0 ? (current / total) * 100 : 0;
+    $("#progress-bar-fill").style.width = pct + "%";
+    $("#progress-label").textContent = `${current} / ${total}`;
+  }
+
+  function updatePracticePrompt() {
+    const prompt = $("#practice-prompt");
+    if (state.readingMode === "word") {
+      const words = state.practiceWords;
+      if (state.wordIndex < words.length) {
+        const wordText = words[state.wordIndex].textContent.replace(/[.,!?;:]/g, "");
+        prompt.textContent = `Say this word: "${wordText}"`;
+      } else {
+        prompt.textContent = "All done!";
+      }
+    } else if (state.readingMode === "line") {
+      const lines = state.practiceLines;
+      if (state.lineIndex < lines.length) {
+        prompt.textContent = "Read this line aloud!";
+      } else {
+        prompt.textContent = "All done!";
+      }
+    }
+  }
+
+  function setupPracticeMic() {
+    const micBtn = $("#practice-mic-btn");
+    const newMicBtn = micBtn.cloneNode(true);
+    micBtn.parentNode.replaceChild(newMicBtn, micBtn);
+
+    newMicBtn.addEventListener("click", () => {
+      if (state.practiceListening) {
+        stopPracticeListening();
+        return;
+      }
+      startPracticeListening();
+    });
+  }
+
+  function setupPracticeHearBtn() {
+    const hearBtn = $("#practice-hear-btn");
+    const newHearBtn = hearBtn.cloneNode(true);
+    hearBtn.parentNode.replaceChild(newHearBtn, hearBtn);
+
+    newHearBtn.addEventListener("click", () => {
+      if (state.readingMode === "word") {
+        helpWithWord();
+      } else if (state.readingMode === "line") {
+        helpWithLine();
+      }
+    });
+  }
+
+  function startPracticeListening() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      showPracticeFeedback("Voice not available in this browser", "try-again");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    if (state.readingMode === "line") {
+      recognition.continuous = true;
+      recognition.interimResults = true;
+    }
+
+    state.practiceRecognition = recognition;
+    state.practiceListening = true;
+
+    const micBtn = $("#practice-mic-btn");
+    micBtn.classList.add("recording");
+    showPracticeFeedback("", "");
+
+    let finalTranscript = "";
+    let silenceTimer = null;
+    let lineProcessed = false;
+
+    recognition.onresult = (event) => {
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript + " ";
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+
+      if (state.readingMode === "word" && finalTranscript.trim()) {
+        recognition.stop();
+        handleWordResult(finalTranscript.trim());
+        return;
+      }
+
+      if (state.readingMode === "line") {
+        const display = finalTranscript + interim;
+        if (display.trim()) {
+          showPracticeFeedback(`"${display.trim()}"`, "");
+        }
+        if (silenceTimer) clearTimeout(silenceTimer);
+        silenceTimer = setTimeout(() => {
+          if ((finalTranscript.trim() || interim.trim()) && !lineProcessed) {
+            lineProcessed = true;
+            recognition.stop();
+            handleLineResult((finalTranscript + interim).trim());
+          }
+        }, 2000);
+      }
+    };
+
+    recognition.onend = () => {
+      state.practiceListening = false;
+      micBtn.classList.remove("recording");
+      if (silenceTimer) clearTimeout(silenceTimer);
+
+      if (state.readingMode === "line" && finalTranscript.trim() && !lineProcessed) {
+        lineProcessed = true;
+        handleLineResult(finalTranscript.trim());
+      }
+    };
+
+    recognition.onerror = (event) => {
+      state.practiceListening = false;
+      micBtn.classList.remove("recording");
+      if (event.error === "no-speech") {
+        showPracticeFeedback("I didn't hear anything. Try again!", "try-again");
+      } else if (event.error !== "aborted") {
+        showPracticeFeedback("Could not hear you. Try again!", "try-again");
+      }
+    };
+
+    recognition.start();
+
+    const timeout = state.readingMode === "line" ? 10000 : 5000;
+    setTimeout(() => {
+      if (state.practiceListening) {
+        try { recognition.stop(); } catch (e) {}
+      }
+    }, timeout);
+  }
+
+  function stopPracticeListening() {
+    if (state.practiceRecognition) {
+      try { state.practiceRecognition.stop(); } catch (e) {}
+    }
+    state.practiceListening = false;
+    $("#practice-mic-btn").classList.remove("recording");
+  }
+
+  function handleWordResult(transcript) {
+    const words = state.practiceWords;
+    if (state.wordIndex >= words.length) return;
+
+    const currentWordEl = words[state.wordIndex];
+    const targetWord = currentWordEl.textContent;
+
+    if (fuzzyWordMatch(transcript, targetWord)) {
+      wordCorrect(currentWordEl);
+    } else {
+      state.practiceAttempts++;
+      currentWordEl.classList.add("word-wrong-flash");
+      setTimeout(() => currentWordEl.classList.remove("word-wrong-flash"), 500);
+
+      if (state.practiceAttempts >= 3 && !state.helpInProgress) {
+        showPracticeFeedback("Let me help you with that one!", "helped");
+        state.helpInProgress = true;
+        const t = setTimeout(() => helpWithWord(), 500);
+        state.practiceTimers.push(t);
+      } else if (state.practiceAttempts < 3) {
+        showPracticeFeedback("Almost! Try again!", "try-again");
+      }
+    }
+  }
+
+  function wordCorrect(wordEl) {
+    showPracticeFeedback(getRandomPraise(), "correct");
+    wordEl.classList.remove("word-current");
+    wordEl.classList.add("word-correct-flash");
+
+    const t = setTimeout(() => {
+      if (state.readingMode !== "word") return;
+      wordEl.classList.remove("word-correct-flash");
+      wordEl.classList.add("word-done");
+      state.wordIndex++;
+      state.practiceAttempts = 0;
+
+      updatePracticeProgress(state.wordIndex, state.practiceWords.length);
+
+      if (state.wordIndex < state.practiceWords.length) {
+        const nextWord = state.practiceWords[state.wordIndex];
+        nextWord.classList.add("word-current");
+        nextWord.scrollIntoView({ behavior: "smooth", block: "center" });
+        updatePracticePrompt();
+      } else {
+        practiceComplete();
+      }
+    }, 600);
+    state.practiceTimers.push(t);
+  }
+
+  function helpWithWord() {
+    const words = state.practiceWords;
+    if (state.wordIndex >= words.length) return;
+    if (state.readingMode !== "word") return;
+
+    const savedIndex = state.wordIndex;
+    const currentWordEl = words[state.wordIndex];
+    const targetWord = currentWordEl.textContent.replace(/[.,!?;:]/g, "");
+
+    showPracticeFeedback(`The word is "${targetWord}"`, "helped");
+    speakText(targetWord, () => {
+      const t = setTimeout(() => {
+        if (state.readingMode !== "word" || state.wordIndex !== savedIndex) return;
+        state.helpInProgress = false;
+        currentWordEl.classList.remove("word-current");
+        currentWordEl.classList.add("word-done");
+        state.wordIndex++;
+        state.practiceAttempts = 0;
+
+        updatePracticeProgress(state.wordIndex, state.practiceWords.length);
+
+        if (state.wordIndex < state.practiceWords.length) {
+          const nextWord = state.practiceWords[state.wordIndex];
+          nextWord.classList.add("word-current");
+          nextWord.scrollIntoView({ behavior: "smooth", block: "center" });
+          updatePracticePrompt();
+        } else {
+          practiceComplete();
+        }
+      }, 800);
+      state.practiceTimers.push(t);
+    });
+  }
+
+  // --- Line-by-Line Mode ---
+  function initLineMode() {
+    const body = $("#reader-body");
+    const story = state.currentStory;
+    body.innerHTML = "";
+
+    const allLines = [];
+
+    story.content.forEach((para, pIdx) => {
+      const pEl = document.createElement("div");
+      pEl.className = "paragraph";
+      pEl.dataset.pindex = pIdx;
+
+      // Split into sentences (capture trailing text without punctuation too)
+      const sentenceMatches = para.match(/[^.!?]+[.!?]+/g) || [];
+      const matchedText = sentenceMatches.join("");
+      const remainder = para.slice(matchedText.length).trim();
+      const sentences = remainder ? [...sentenceMatches, remainder] : (sentenceMatches.length > 0 ? sentenceMatches : [para]);
+
+      sentences.forEach((sentence) => {
+        const lineGroup = document.createElement("div");
+        lineGroup.className = "line-group line-hidden";
+        lineGroup.dataset.lineIndex = allLines.length;
+
+        const lineWords = [];
+        const words = sentence.trim().split(/(\s+)/);
+        words.forEach((w) => {
+          if (/^\s+$/.test(w)) {
+            lineGroup.appendChild(document.createTextNode(w));
+          } else {
+            const span = document.createElement("span");
+            span.className = "word";
+            span.textContent = w;
+            span.addEventListener("click", () => speakWord(span, w));
+            lineGroup.appendChild(span);
+            lineWords.push(w);
+          }
+        });
+
+        allLines.push({ element: lineGroup, words: lineWords });
+        pEl.appendChild(lineGroup);
+      });
+
+      body.appendChild(pEl);
+    });
+
+    state.practiceLines = allLines;
+    state.lineIndex = 0;
+    state.practiceAttempts = 0;
+
+    if (allLines.length > 0) {
+      allLines[0].element.classList.remove("line-hidden");
+      allLines[0].element.classList.add("line-current");
+      allLines[0].element.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    updatePracticeProgress(0, allLines.length);
+    updatePracticePrompt();
+    setupPracticeMic();
+    setupPracticeHearBtn();
+  }
+
+  function handleLineResult(transcript) {
+    const lines = state.practiceLines;
+    if (state.lineIndex >= lines.length) return;
+
+    const currentLine = lines[state.lineIndex];
+
+    if (fuzzyLineMatch(transcript, currentLine.words)) {
+      lineCorrect(currentLine);
+    } else {
+      state.practiceAttempts++;
+      currentLine.element.classList.add("word-wrong-flash");
+      setTimeout(() => currentLine.element.classList.remove("word-wrong-flash"), 500);
+
+      if (state.practiceAttempts >= 3 && !state.helpInProgress) {
+        showPracticeFeedback("Let me help you with that one!", "helped");
+        state.helpInProgress = true;
+        const t = setTimeout(() => helpWithLine(), 500);
+        state.practiceTimers.push(t);
+      } else if (state.practiceAttempts < 3) {
+        showPracticeFeedback("Almost! Try reading it again!", "try-again");
+      }
+    }
+  }
+
+  function lineCorrect(line) {
+    showPracticeFeedback(getRandomPraise(), "correct");
+    line.element.classList.remove("line-current");
+    line.element.classList.add("line-correct-flash");
+
+    const t = setTimeout(() => {
+      if (state.readingMode !== "line") return;
+      line.element.classList.remove("line-correct-flash");
+      line.element.classList.add("line-done");
+      state.lineIndex++;
+      state.practiceAttempts = 0;
+
+      updatePracticeProgress(state.lineIndex, state.practiceLines.length);
+
+      if (state.lineIndex < state.practiceLines.length) {
+        const nextLine = state.practiceLines[state.lineIndex];
+        nextLine.element.classList.remove("line-hidden");
+        nextLine.element.classList.add("line-current");
+        nextLine.element.scrollIntoView({ behavior: "smooth", block: "center" });
+        updatePracticePrompt();
+      } else {
+        practiceComplete();
+      }
+    }, 600);
+    state.practiceTimers.push(t);
+  }
+
+  function helpWithLine() {
+    const lines = state.practiceLines;
+    if (state.lineIndex >= lines.length) return;
+    if (state.readingMode !== "line") return;
+
+    const savedIndex = state.lineIndex;
+    const currentLine = lines[state.lineIndex];
+    const lineText = currentLine.words.join(" ").replace(/[.,!?;:]/g, " ").replace(/\s+/g, " ").trim();
+
+    showPracticeFeedback("Listen carefully...", "helped");
+    speakText(lineText, () => {
+      const t = setTimeout(() => {
+        if (state.readingMode !== "line" || state.lineIndex !== savedIndex) return;
+        state.helpInProgress = false;
+        currentLine.element.classList.remove("line-current");
+        currentLine.element.classList.add("line-done");
+        state.lineIndex++;
+        state.practiceAttempts = 0;
+
+        updatePracticeProgress(state.lineIndex, state.practiceLines.length);
+
+        if (state.lineIndex < state.practiceLines.length) {
+          const nextLine = state.practiceLines[state.lineIndex];
+          nextLine.element.classList.remove("line-hidden");
+          nextLine.element.classList.add("line-current");
+          nextLine.element.scrollIntoView({ behavior: "smooth", block: "center" });
+          updatePracticePrompt();
+        } else {
+          practiceComplete();
+        }
+      }, 800);
+      state.practiceTimers.push(t);
+    });
+  }
+
+  // --- Practice Helpers ---
+  function showPracticeFeedback(text, type) {
+    const feedback = $("#practice-feedback");
+    feedback.textContent = text;
+    feedback.className = "practice-feedback";
+    if (type) feedback.classList.add(type);
+  }
+
+  function getRandomPraise() {
+    const phrases = [
+      "Great job!", "Awesome!", "Perfect!",
+      "You got it!", "Amazing!", "Super reader!",
+      "Wonderful!", "Nailed it!", "Fantastic!",
+      "Way to go!"
+    ];
+    return phrases[Math.floor(Math.random() * phrases.length)];
+  }
+
+  function practiceComplete() {
+    showPracticeFeedback("", "");
+    $("#practice-prompt").textContent = "";
+
+    const practiceStatus = $("#practice-status");
+    practiceStatus.classList.add("hidden");
+
+    // Show completion banner
+    const banner = document.createElement("div");
+    banner.className = "practice-complete-banner";
+    banner.innerHTML = `
+      <span class="banner-icon">🏆</span>
+      <div class="banner-text">Amazing Job!</div>
+      <div class="banner-sub">You read the whole story!</div>
+    `;
+    const readerBody = $("#reader-body");
+    readerBody.parentNode.insertBefore(banner, readerBody.nextSibling);
+
+    addXP(20);
+    launchConfetti();
+  }
+
+  function resetMode() {
+    cleanupPracticeMode();
+    state.readingMode = "normal";
+    state.wordIndex = 0;
+    state.lineIndex = 0;
+    state.practiceAttempts = 0;
+    state.practiceWords = [];
+    state.practiceLines = [];
+
+    $$(".mode-btn").forEach((b) => b.classList.remove("active"));
+    const normalBtn = $(".mode-btn[data-mode=\"normal\"]");
+    if (normalBtn) normalBtn.classList.add("active");
+
+    const readerBody = $("#reader-body");
+    if (readerBody) readerBody.classList.remove("mode-word", "mode-line");
+
+    const practiceProgress = $("#practice-progress");
+    const practiceStatus = $("#practice-status");
+    const readAloudBtn = $("#read-aloud-btn");
+    const wordBank = $("#word-bank");
+
+    if (practiceProgress) practiceProgress.classList.add("hidden");
+    if (practiceStatus) practiceStatus.classList.add("hidden");
+    if (readAloudBtn) readAloudBtn.classList.remove("hidden");
+    if (wordBank) wordBank.classList.remove("hidden");
   }
 
   // --- Load voices (some browsers need this) ---
