@@ -7,9 +7,350 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260208-2000">
+  <link rel="stylesheet" href="styles.css?v=20260208-2100">
 </head>
 <body>
+  <!-- ===== LANDING PAGE ===== -->
+  <div id="landing-page" class="landing-page" style="display:none;">
+    <!-- Landing Nav -->
+    <nav class="lp-nav">
+      <div class="lp-nav-inner">
+        <div class="lp-nav-logo">
+          <span class="lp-nav-icon">📖</span>
+          <span class="lp-nav-text">ReadBuddy</span>
+        </div>
+        <button id="lp-nav-cta" class="lp-nav-btn">Get Started</button>
+      </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="lp-hero">
+      <div class="lp-container">
+        <div class="lp-hero-badge">Built for kids who struggle with reading</div>
+        <h1 class="lp-hero-h1">They'll actually want<br>to read this one.</h1>
+        <p class="lp-hero-sub">ReadBuddy creates stories about the things your child already loves, then makes reading feel like a game.</p>
+        <button class="lp-hero-btn lp-cta-btn">Get Started &mdash; It's Free</button>
+        <div class="lp-hero-visual">
+          <div class="lp-phone-mock">
+            <div class="lp-phone-screen">
+              <div class="lp-mock-greeting">Good Morning!</div>
+              <div class="lp-mock-title">What do you want to read about?</div>
+              <div class="lp-mock-topics">
+                <span class="lp-mock-chip">🦖 Dinosaurs</span>
+                <span class="lp-mock-chip">⚽ Soccer</span>
+                <span class="lp-mock-chip">🧱 Minecraft</span>
+                <span class="lp-mock-chip">🚀 Outer Space</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="lp-section lp-how">
+      <div class="lp-container">
+        <h2 class="lp-section-title">Reading in 3 simple steps</h2>
+        <div class="lp-steps">
+          <div class="lp-step">
+            <div class="lp-step-num">1</div>
+            <div class="lp-step-icon">🎯</div>
+            <h3 class="lp-step-h3">They pick a topic</h3>
+            <p class="lp-step-p">Dinosaurs, Minecraft, football, space &mdash; whatever they're into right now. Type it in or say it out loud.</p>
+          </div>
+          <div class="lp-step">
+            <div class="lp-step-num">2</div>
+            <div class="lp-step-icon">📖</div>
+            <h3 class="lp-step-h3">They read their way</h3>
+            <p class="lp-step-p">Stories adapt to their level. Read along, word-by-word, or line-by-line &mdash; with voice recognition that cheers them on.</p>
+          </div>
+          <div class="lp-step">
+            <div class="lp-step-num">3</div>
+            <div class="lp-step-icon">🏆</div>
+            <h3 class="lp-step-h3">They level up</h3>
+            <p class="lp-step-p">Earn XP, build streaks, unlock achievements, and watch their confidence grow &mdash; just like their favorite games.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- AI Differentiator -->
+    <section class="lp-section lp-ai">
+      <div class="lp-container">
+        <div class="lp-ai-badge">The magic</div>
+        <h2 class="lp-section-title">Stories about what <em>they</em> love</h2>
+        <p class="lp-section-sub">Most reading apps give your kid whatever's in the library. ReadBuddy writes stories about their actual interests &mdash; at exactly their reading level.</p>
+        <div class="lp-ai-demo">
+          <div class="lp-ai-input">
+            <div class="lp-ai-input-label">Your child types:</div>
+            <div class="lp-ai-input-text">"I want to read about Minecraft"</div>
+          </div>
+          <div class="lp-ai-arrow">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+          </div>
+          <div class="lp-ai-output">
+            <div class="lp-ai-stories">
+              <div class="lp-ai-story-card"><span>🧱</span> Building a Minecraft House</div>
+              <div class="lp-ai-story-card"><span>⛏️</span> Mining for Diamonds</div>
+              <div class="lp-ai-story-card"><span>🐉</span> Fighting the Ender Dragon</div>
+            </div>
+            <div class="lp-ai-note">3 stories generated at their reading level in seconds</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Feature Highlights -->
+    <section class="lp-section lp-features">
+      <div class="lp-container">
+        <h2 class="lp-section-title">Built for readers who need a little extra</h2>
+        <div class="lp-feature-grid">
+          <div class="lp-feature-card">
+            <div class="lp-feature-icon">🔤</div>
+            <h3>Dyslexia-friendly design</h3>
+            <p>Lexend font, adjustable spacing, reading ruler, syllable helper, and warm backgrounds &mdash; every detail designed for readability.</p>
+          </div>
+          <div class="lp-feature-card">
+            <div class="lp-feature-icon">🎮</div>
+            <h3>Gamification that works</h3>
+            <p>XP for every story, streaks for daily reading, levels to chase, and achievements to unlock. Reading becomes a game they don't want to stop.</p>
+          </div>
+          <div class="lp-feature-card">
+            <div class="lp-feature-icon">🧠</div>
+            <h3>Comprehension tracking</h3>
+            <p>Every story ends with a quiz and word review flashcards. You see what they're learning &mdash; and where they need help.</p>
+          </div>
+          <div class="lp-feature-card">
+            <div class="lp-feature-icon">🎙️</div>
+            <h3>Voice-powered practice</h3>
+            <p>Word-by-word and line-by-line reading modes with speech recognition. They read aloud, ReadBuddy listens and encourages.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Customization / Trust -->
+    <section class="lp-section lp-trust">
+      <div class="lp-container">
+        <h2 class="lp-section-title">Every reader is different.<br>ReadBuddy adapts.</h2>
+        <div class="lp-customize-grid">
+          <div class="lp-customize-item">
+            <span class="lp-customize-icon">Aa</span>
+            <span>Text size (18px &ndash; 36px)</span>
+          </div>
+          <div class="lp-customize-item">
+            <span class="lp-customize-icon">↔</span>
+            <span>Letter &amp; word spacing</span>
+          </div>
+          <div class="lp-customize-item">
+            <span class="lp-customize-icon">📏</span>
+            <span>Line height control</span>
+          </div>
+          <div class="lp-customize-item">
+            <span class="lp-customize-icon">🎨</span>
+            <span>6 background colors</span>
+          </div>
+          <div class="lp-customize-item">
+            <span class="lp-customize-icon">📐</span>
+            <span>Reading ruler</span>
+          </div>
+          <div class="lp-customize-item">
+            <span class="lp-customize-icon">🔡</span>
+            <span>Syllable helper</span>
+          </div>
+          <div class="lp-customize-item">
+            <span class="lp-customize-icon">🐢</span>
+            <span>Adjustable read-aloud speed</span>
+          </div>
+          <div class="lp-customize-item">
+            <span class="lp-customize-icon">🔊</span>
+            <span>Text-to-speech on every story</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Social Proof -->
+    <section class="lp-section lp-testimonials">
+      <div class="lp-container">
+        <h2 class="lp-section-title">Parents are seeing the difference</h2>
+        <div class="lp-testimonial-grid">
+          <div class="lp-testimonial">
+            <div class="lp-testimonial-stars">★★★★★</div>
+            <p>"My son hated reading. Then I told him he could read about Minecraft and his eyes lit up. He's read 12 stories this week."</p>
+            <div class="lp-testimonial-author">&mdash; Sarah M., parent of a 3rd grader</div>
+          </div>
+          <div class="lp-testimonial">
+            <div class="lp-testimonial-stars">★★★★★</div>
+            <p>"The syllable helper and reading ruler are exactly what my daughter's reading specialist recommended. And she actually wants to use it."</p>
+            <div class="lp-testimonial-author">&mdash; David K., parent of a 2nd grader</div>
+          </div>
+          <div class="lp-testimonial">
+            <div class="lp-testimonial-stars">★★★★★</div>
+            <p>"He keeps asking to 'play the reading game' before bed. The streaks and XP system are genius."</p>
+            <div class="lp-testimonial-author">&mdash; Jessica R., parent of a 2nd grader</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="lp-section lp-faq">
+      <div class="lp-container">
+        <h2 class="lp-section-title">Common questions</h2>
+        <div class="lp-faq-list">
+          <details class="lp-faq-item">
+            <summary>Is ReadBuddy free?</summary>
+            <div class="lp-faq-answer">Yes! ReadBuddy comes with 54 built-in stories that are completely free. To generate custom stories about your child's interests, you'll need to connect an API key from OpenAI or Anthropic (which have their own pricing, typically pennies per story).</div>
+          </details>
+          <details class="lp-faq-item">
+            <summary>What reading level is this for?</summary>
+            <div class="lp-faq-answer">ReadBuddy has two reading levels: Level 1 (2nd grade, ~90 words per story) and Level 2 (3rd grade, ~140 words per story). Stories use age-appropriate vocabulary with built-in word banks and quizzes.</div>
+          </details>
+          <details class="lp-faq-item">
+            <summary>Is this designed for kids with dyslexia?</summary>
+            <div class="lp-faq-answer">Yes. Every design choice &mdash; the Lexend font, adjustable letter and word spacing, warm background colors, reading ruler, and syllable helper &mdash; follows best practices for dyslexia-friendly reading. But any struggling reader can benefit from these features.</div>
+          </details>
+          <details class="lp-faq-item">
+            <summary>Where is my child's data stored?</summary>
+            <div class="lp-faq-answer">All data stays in your browser's local storage by default &mdash; nothing is sent to any server. If you sign in with Google, your progress syncs across devices via Firebase, but that's optional.</div>
+          </details>
+          <details class="lp-faq-item">
+            <summary>What do I need an API key for?</summary>
+            <div class="lp-faq-answer">The API key powers the AI story generator. When your child types a topic like "dinosaurs" or "Minecraft," ReadBuddy uses OpenAI or Anthropic to write original stories at their reading level. Without a key, you still get all 54 built-in stories.</div>
+          </details>
+          <details class="lp-faq-item">
+            <summary>Does it work on phones and tablets?</summary>
+            <div class="lp-faq-answer">Absolutely. ReadBuddy is mobile-first and works great on phones, tablets, and desktops. No app store download needed &mdash; it runs right in your browser.</div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="lp-section lp-final-cta">
+      <div class="lp-container">
+        <div class="lp-final-card">
+          <h2>Ready to watch them <em>want</em> to read?</h2>
+          <p>Set up ReadBuddy in under 2 minutes. Pick their interests, and they'll have personalized stories tonight.</p>
+          <button class="lp-hero-btn lp-cta-btn">Get Started &mdash; It's Free</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="lp-footer">
+      <div class="lp-container">
+        <div class="lp-footer-inner">
+          <span class="lp-footer-logo">📖 ReadBuddy</span>
+          <span class="lp-footer-text">Built with love for struggling readers.</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ===== ONBOARDING OVERLAY ===== -->
+  <div id="onboarding" class="ob-overlay" style="display:none;">
+    <div class="ob-container">
+      <!-- Progress dots -->
+      <div class="ob-progress" id="ob-progress">
+        <div class="ob-dot active" data-step="0"></div>
+        <div class="ob-dot" data-step="1"></div>
+        <div class="ob-dot" data-step="2"></div>
+        <div class="ob-dot" data-step="3"></div>
+        <div class="ob-dot" data-step="4"></div>
+      </div>
+
+      <!-- Step 0: Welcome -->
+      <div class="ob-step active" id="ob-step-0">
+        <div class="ob-welcome-avatar" id="ob-avatar"></div>
+        <h1 class="ob-h1" id="ob-welcome-name">Welcome to ReadBuddy!</h1>
+        <p class="ob-sub">Let's set things up so your reader can start reading stories they'll love.</p>
+        <button class="ob-primary-btn" id="ob-go-1">Let's Go!</button>
+      </div>
+
+      <!-- Step 1: API Key -->
+      <div class="ob-step" id="ob-step-1">
+        <div class="ob-step-icon">🔑</div>
+        <h2 class="ob-h2">Connect your AI story engine</h2>
+        <p class="ob-sub">ReadBuddy uses AI to generate stories about whatever your child is interested in. You'll need an API key from one of these providers.</p>
+
+        <div class="ob-provider-tabs">
+          <button class="ob-tab active" data-provider="openai">OpenAI</button>
+          <button class="ob-tab" data-provider="anthropic">Anthropic (Claude)</button>
+        </div>
+
+        <div class="ob-key-section" id="ob-key-openai">
+          <input type="password" class="ob-input" id="ob-api-key-openai" placeholder="sk-proj-..." aria-label="OpenAI API key">
+          <details class="ob-help-details">
+            <summary>How do I get an OpenAI key?</summary>
+            <ol class="ob-help-steps">
+              <li>Go to <a href="https://platform.openai.com" target="_blank" rel="noopener">platform.openai.com</a></li>
+              <li>Sign up or log in</li>
+              <li>Click <strong>API Keys</strong> in the sidebar</li>
+              <li>Click <strong>Create new secret key</strong></li>
+              <li>Copy and paste it above</li>
+            </ol>
+          </details>
+        </div>
+
+        <div class="ob-key-section" id="ob-key-anthropic" style="display:none;">
+          <input type="password" class="ob-input" id="ob-api-key-anthropic" placeholder="sk-ant-..." aria-label="Anthropic API key">
+          <details class="ob-help-details">
+            <summary>How do I get an Anthropic key?</summary>
+            <ol class="ob-help-steps">
+              <li>Go to <a href="https://console.anthropic.com" target="_blank" rel="noopener">console.anthropic.com</a></li>
+              <li>Sign up or log in</li>
+              <li>Click <strong>API Keys</strong></li>
+              <li>Click <strong>Create Key</strong></li>
+              <li>Copy and paste it above</li>
+            </ol>
+          </details>
+        </div>
+
+        <p class="ob-key-note">This lets ReadBuddy create stories about whatever your child is interested in. Your key stays on this device.</p>
+
+        <div class="ob-api-error" id="ob-api-error" style="display:none;"></div>
+
+        <button class="ob-primary-btn" id="ob-go-2">Continue</button>
+        <button class="ob-skip-btn" id="ob-skip-api">Skip for now &mdash; I'll add it later in settings</button>
+        <p class="ob-skip-note">You'll still get 54 built-in stories, but won't be able to generate new ones.</p>
+      </div>
+
+      <!-- Step 2: Reader Interests -->
+      <div class="ob-step" id="ob-step-2">
+        <div class="ob-step-icon">💡</div>
+        <h2 class="ob-h2">What is your reader into right now?</h2>
+        <p class="ob-sub">Tell us about their interests so we can create their first stories.</p>
+        <textarea class="ob-textarea" id="ob-interests" placeholder="My son loves Minecraft, dinosaurs, and the Green Bay Packers. He's also really into space and rockets lately." rows="5"></textarea>
+        <p class="ob-textarea-note">We'll use this to generate 6 topics with stories at their reading level. You can always add more later.</p>
+        <button class="ob-primary-btn ob-btn-green" id="ob-go-3">Create My Stories</button>
+      </div>
+
+      <!-- Step 3: Generating -->
+      <div class="ob-step" id="ob-step-3">
+        <div class="ob-gen-icon" id="ob-gen-icon">📖</div>
+        <h2 class="ob-h2" id="ob-gen-title">Creating your stories...</h2>
+        <p class="ob-gen-status" id="ob-gen-status">Getting ready...</p>
+        <div class="ob-gen-progress">
+          <div class="ob-gen-bar" id="ob-gen-bar" style="width:0%"></div>
+        </div>
+        <div class="ob-gen-count" id="ob-gen-count"></div>
+        <div class="ob-gen-topics" id="ob-gen-topics"></div>
+        <div class="ob-gen-tip" id="ob-gen-tip"></div>
+      </div>
+
+      <!-- Step 4: Ready -->
+      <div class="ob-step" id="ob-step-4">
+        <div class="ob-ready-star">🌟</div>
+        <h2 class="ob-h2">You're all set!</h2>
+        <p class="ob-sub" id="ob-ready-msg">Your stories are ready.</p>
+        <div class="ob-ready-topics" id="ob-ready-topics"></div>
+        <button class="ob-primary-btn ob-btn-green ob-btn-big" id="ob-start-reading">Start Reading</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== SETTINGS PANEL (slide-out) ===== -->
   <div id="settings-panel" class="settings-panel" aria-label="Reading settings">
     <div class="settings-header">
@@ -75,7 +416,7 @@
   <div id="reading-ruler" class="reading-ruler"></div>
 
   <!-- ===== APP CONTAINER ===== -->
-  <div id="app" class="app-container">
+  <div id="app" class="app-container" style="display:none;">
 
     <!-- ===== TOP BAR ===== -->
     <header class="top-bar">
@@ -88,7 +429,7 @@
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
         </button>
       </div>
-      <div class="build-stamp">Last push: Feb 8, 2026 — 6:00 PM</div>
+      <div class="build-stamp">Last push: Feb 8, 2026 — 9:00 PM</div>
     </header>
 
     <!-- ===== SCREEN: TOPIC PICKER ===== -->
@@ -295,8 +636,8 @@
     };
   </script>
 
-  <script src="config.js?v=20260208-2000"></script>
-  <script src="stories.js?v=20260208-2000"></script>
-  <script src="app.js?v=20260208-2000"></script>
+  <script src="config.js?v=20260208-2100"></script>
+  <script src="stories.js?v=20260208-2100"></script>
+  <script src="app.js?v=20260208-2100"></script>
 </body>
 </html>

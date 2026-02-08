@@ -80,9 +80,16 @@
     return getFirebaseConfig() !== null;
   }
 
+  let authResolved = false;
+  let redirectHandled = false;
+
   function initFirebase() {
     const fbConfig = getFirebaseConfig();
-    if (!fbConfig) return;
+    if (!fbConfig) {
+      // No Firebase — show app directly (original behavior)
+      showAppView();
+      return;
+    }
     try {
       if (!firebase.apps.length) {
         firebase.initializeApp(fbConfig);
@@ -92,35 +99,72 @@
 
       // Check for redirect result first (runs after Google sign-in redirect)
       firebaseAuth.getRedirectResult().then((result) => {
+        redirectHandled = true;
         if (result && result.user) {
           firebaseUser = result.user;
           updateSyncUI();
-          loadFromCloud();
+          handleAuthenticatedUser(result.user, true);
         }
       }).catch((err) => {
+        redirectHandled = true;
         console.warn("Redirect sign-in error:", err);
-        const statusEl = document.getElementById("sync-status");
-        if (statusEl) {
-          let msg = "Sign-in failed.";
-          if (err.code === "auth/unauthorized-domain") {
-            msg = "Add this domain in Firebase > Authentication > Authorized domains.";
-          } else if (err.code) {
-            msg = `Error: ${err.code}`;
-          }
-          statusEl.innerHTML = `<span style="color:var(--red);font-size:13px;line-height:1.4;">${msg}</span>`;
-        }
       });
 
-      // Listen for auth state changes
+      // Listen for auth state changes — this is the primary auth gate
       firebaseAuth.onAuthStateChanged((user) => {
         firebaseUser = user;
         updateSyncUI();
-        if (user) {
-          loadFromCloud();
+        if (!authResolved) {
+          authResolved = true;
+          if (user) {
+            handleAuthenticatedUser(user, false);
+          } else {
+            showLandingPage();
+          }
+        } else {
+          // Subsequent auth changes (sign out)
+          if (!user) {
+            showLandingPage();
+          }
         }
       });
     } catch (e) {
       console.warn("Firebase init failed:", e);
+      showAppView();
+    }
+  }
+
+  function handleAuthenticatedUser(user, fromRedirect) {
+    // Check if this is a new user who needs onboarding
+    const onboarded = localStorage.getItem("rb_onboarded");
+    if (onboarded === "true") {
+      loadFromCloud();
+      showAppView();
+      return;
+    }
+
+    // Check Firestore for existing data (could be new device)
+    if (firebaseDB) {
+      firebaseDB.collection("users").doc(user.uid).get().then((doc) => {
+        if (doc.exists && doc.data().onboarded) {
+          localStorage.setItem("rb_onboarded", "true");
+          // Load user topics if stored
+          if (doc.data().userTopics) {
+            localStorage.setItem("rb_user_topics", JSON.stringify(doc.data().userTopics));
+            loadUserTopics();
+          }
+          loadFromCloud();
+          showAppView();
+        } else {
+          // New user — show onboarding
+          showOnboarding(user);
+        }
+      }).catch(() => {
+        // Firestore error — show onboarding as fallback
+        showOnboarding(user);
+      });
+    } else {
+      showOnboarding(user);
     }
   }
 
@@ -152,7 +196,9 @@
 
   function signOutFirebase() {
     if (!firebaseAuth) return;
-    firebaseAuth.signOut();
+    firebaseAuth.signOut().then(() => {
+      showLandingPage();
+    });
   }
 
   function saveToCloud() {
@@ -291,6 +337,457 @@
     settingsBody.appendChild(divider);
   }
 
+  // --- View Management (Landing / App / Onboarding) ---
+
+  function showLandingPage() {
+    document.getElementById("landing-page").style.display = "";
+    document.getElementById("app").style.display = "none";
+    document.getElementById("onboarding").style.display = "none";
+    // Update landing page CTAs based on auth state
+    updateLandingCTAs();
+  }
+
+  function showAppView() {
+    document.getElementById("landing-page").style.display = "none";
+    document.getElementById("app").style.display = "";
+    document.getElementById("onboarding").style.display = "none";
+    // Refresh UI in case data was loaded from cloud
+    loadUserTopics();
+    buildTopicGrid();
+    updateXPDisplay();
+  }
+
+  function showOnboarding(user) {
+    document.getElementById("landing-page").style.display = "none";
+    document.getElementById("app").style.display = "none";
+    document.getElementById("onboarding").style.display = "";
+    setupOnboarding(user);
+  }
+
+  function updateLandingCTAs() {
+    const isLoggedIn = !!firebaseUser;
+    const navBtn = document.getElementById("lp-nav-cta");
+    const ctaBtns = document.querySelectorAll(".lp-cta-btn");
+
+    if (isLoggedIn) {
+      if (navBtn) {
+        navBtn.textContent = "Open App";
+        navBtn.onclick = () => showAppView();
+      }
+      ctaBtns.forEach(btn => {
+        btn.textContent = "Back to Reading";
+        btn.onclick = () => showAppView();
+      });
+    } else {
+      if (navBtn) {
+        navBtn.textContent = "Get Started";
+        navBtn.onclick = signInWithGoogle;
+      }
+      ctaBtns.forEach(btn => {
+        btn.textContent = "Get Started \u2014 It's Free";
+        btn.onclick = signInWithGoogle;
+      });
+    }
+  }
+
+  function setupLandingPage() {
+    // Attach click handlers to all CTA buttons
+    const navBtn = document.getElementById("lp-nav-cta");
+    if (navBtn) navBtn.addEventListener("click", signInWithGoogle);
+
+    document.querySelectorAll(".lp-cta-btn").forEach(btn => {
+      btn.addEventListener("click", signInWithGoogle);
+    });
+  }
+
+  // --- User Topics (persist custom topics across reloads) ---
+
+  function loadUserTopics() {
+    const saved = JSON.parse(localStorage.getItem("rb_user_topics") || "[]");
+    saved.forEach(topic => {
+      if (!TOPICS.find(t => t.id === topic.id)) {
+        TOPICS.push(topic);
+      }
+    });
+  }
+
+  function saveUserTopics(topics) {
+    localStorage.setItem("rb_user_topics", JSON.stringify(topics));
+  }
+
+  // --- Onboarding Flow ---
+
+  let obStep = 0;
+  let obProvider = "openai";
+  let obGeneratedTopics = [];
+
+  function setupOnboarding(user) {
+    obStep = 0;
+    obProvider = "openai";
+    obGeneratedTopics = [];
+    updateObStep(0);
+
+    // Welcome step - show user info
+    const avatarEl = document.getElementById("ob-avatar");
+    const nameEl = document.getElementById("ob-welcome-name");
+    if (user.photoURL) {
+      avatarEl.innerHTML = `<img src="${user.photoURL}" alt="Profile photo">`;
+    } else {
+      avatarEl.textContent = "👋";
+    }
+    const firstName = (user.displayName || "").split(" ")[0] || "Reader";
+    nameEl.textContent = `Welcome, ${firstName}!`;
+
+    // Step navigation
+    document.getElementById("ob-go-1").onclick = () => updateObStep(1);
+    document.getElementById("ob-go-2").onclick = () => handleObAPIKey();
+    document.getElementById("ob-skip-api").onclick = () => updateObStep(2);
+    document.getElementById("ob-go-3").onclick = () => handleObGenerate();
+    document.getElementById("ob-start-reading").onclick = () => finishOnboarding();
+
+    // Provider tabs
+    document.querySelectorAll(".ob-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".ob-tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        obProvider = tab.dataset.provider;
+        document.getElementById("ob-key-openai").style.display = obProvider === "openai" ? "" : "none";
+        document.getElementById("ob-key-anthropic").style.display = obProvider === "anthropic" ? "" : "none";
+      });
+    });
+  }
+
+  function updateObStep(step) {
+    obStep = step;
+    // Update progress dots
+    document.querySelectorAll(".ob-dot").forEach((dot, i) => {
+      dot.classList.toggle("active", i === step);
+      dot.classList.toggle("done", i < step);
+    });
+    // Show/hide steps
+    document.querySelectorAll(".ob-step").forEach((el, i) => {
+      el.classList.toggle("active", i === step);
+    });
+  }
+
+  function handleObAPIKey() {
+    const keyInput = obProvider === "openai"
+      ? document.getElementById("ob-api-key-openai")
+      : document.getElementById("ob-api-key-anthropic");
+    const key = keyInput.value.trim();
+    const errorEl = document.getElementById("ob-api-error");
+
+    if (!key) {
+      errorEl.textContent = "Please paste your API key, or tap \"Skip for now\" below.";
+      errorEl.style.display = "";
+      return;
+    }
+
+    // Basic format validation
+    if (obProvider === "openai" && !key.startsWith("sk-")) {
+      errorEl.textContent = "OpenAI keys start with \"sk-\". Please check your key.";
+      errorEl.style.display = "";
+      return;
+    }
+    if (obProvider === "anthropic" && !key.startsWith("sk-ant-")) {
+      errorEl.textContent = "Anthropic keys start with \"sk-ant-\". Please check your key.";
+      errorEl.style.display = "";
+      return;
+    }
+
+    errorEl.style.display = "none";
+
+    // Save the API key
+    state.settings.apiKey = key;
+    state.settings.apiProvider = obProvider;
+    saveSettings();
+
+    updateObStep(2);
+  }
+
+  async function handleObGenerate() {
+    const interests = document.getElementById("ob-interests").value.trim();
+    if (!interests) {
+      document.getElementById("ob-interests").style.borderColor = "var(--red)";
+      return;
+    }
+
+    if (!hasAPIKey()) {
+      // Skip to done step without generating
+      updateObStep(4);
+      document.getElementById("ob-ready-msg").textContent = "You can add an API key in Settings later to generate custom stories.";
+      document.getElementById("ob-ready-topics").innerHTML = "";
+      return;
+    }
+
+    updateObStep(3);
+    await runOnboardingGeneration(interests);
+  }
+
+  const readingTips = [
+    "Kids read 3x more when the topic is their choice.",
+    "Short daily reading sessions build confidence faster than long ones.",
+    "Earning XP makes even reluctant readers want to come back.",
+    "The Lexend font was specifically designed for easier reading.",
+    "Reading aloud together is one of the best ways to support a struggling reader.",
+    "Syllable breaking helps decode unfamiliar words.",
+    "Streaks create positive reading habits naturally."
+  ];
+
+  async function runOnboardingGeneration(interests) {
+    const statusEl = document.getElementById("ob-gen-status");
+    const barEl = document.getElementById("ob-gen-bar");
+    const countEl = document.getElementById("ob-gen-count");
+    const topicsEl = document.getElementById("ob-gen-topics");
+    const tipEl = document.getElementById("ob-gen-tip");
+
+    let storiesCreated = 0;
+    const totalStories = 36;
+    let tipIndex = 0;
+
+    // Rotate tips
+    const tipTimer = setInterval(() => {
+      tipEl.textContent = readingTips[tipIndex % readingTips.length];
+      tipIndex++;
+    }, 4000);
+    tipEl.textContent = readingTips[0];
+
+    try {
+      // Step 1: Generate topic names
+      statusEl.textContent = "Figuring out what they'll love...";
+      barEl.style.width = "5%";
+
+      const topicDefs = await generateTopicNames(interests);
+      obGeneratedTopics = topicDefs;
+
+      // Show topic cards
+      topicsEl.innerHTML = topicDefs.map(t =>
+        `<div class="ob-gen-topic-card" id="ob-topic-${t.id}"><span>${t.icon}</span> ${t.label}</div>`
+      ).join("");
+
+      // Step 2: Generate stories for each topic
+      for (let ti = 0; ti < topicDefs.length; ti++) {
+        const topic = topicDefs[ti];
+        const cardEl = document.getElementById(`ob-topic-${topic.id}`);
+        if (cardEl) cardEl.className = "ob-gen-topic-card generating";
+
+        statusEl.textContent = `Writing ${topic.label} stories...`;
+
+        // Generate Level 1 stories (3)
+        const l1Stories = await callAIBatch(topic.label, 1);
+        for (let i = 0; i < l1Stories.length; i++) {
+          const story = l1Stories[i];
+          const storyKey = `${topic.id}:gen-${Date.now()}-L1-${i}`;
+          story.topic = topic.id;
+          story.level = 1;
+          story.icon = topic.icon;
+          story.id = storyKey;
+          state.generatedStories[storyKey] = story;
+          storiesCreated++;
+          countEl.textContent = `${storiesCreated} of ${totalStories} stories created`;
+          barEl.style.width = Math.round((storiesCreated / totalStories) * 100) + "%";
+        }
+
+        // Generate Level 2 stories (3)
+        const l2Stories = await callAIBatch(topic.label, 2);
+        for (let i = 0; i < l2Stories.length; i++) {
+          const story = l2Stories[i];
+          const storyKey = `${topic.id}:gen-${Date.now()}-L2-${i}`;
+          story.topic = topic.id;
+          story.level = 2;
+          story.icon = topic.icon;
+          story.id = storyKey;
+          state.generatedStories[storyKey] = story;
+          storiesCreated++;
+          countEl.textContent = `${storiesCreated} of ${totalStories} stories created`;
+          barEl.style.width = Math.round((storiesCreated / totalStories) * 100) + "%";
+        }
+
+        if (cardEl) cardEl.className = "ob-gen-topic-card done";
+      }
+
+      // Save generated stories
+      localStorage.setItem("rb_generated", JSON.stringify(state.generatedStories));
+
+      // Save user topics
+      const userTopics = topicDefs.map(t => ({ id: t.id, label: t.label, icon: t.icon, color: t.color }));
+      saveUserTopics(userTopics);
+      loadUserTopics();
+
+      clearInterval(tipTimer);
+
+      // Show ready screen
+      barEl.style.width = "100%";
+      countEl.textContent = `${storiesCreated} stories created!`;
+      statusEl.textContent = "All done!";
+
+      await new Promise(r => setTimeout(r, 800));
+
+      updateObStep(4);
+      document.getElementById("ob-ready-msg").textContent = `${storiesCreated} stories are ready to read!`;
+      document.getElementById("ob-ready-topics").innerHTML = topicDefs.map((t, i) =>
+        `<div class="ob-ready-topic" style="animation-delay:${i * 0.1}s"><span>${t.icon}</span> ${t.label}</div>`
+      ).join("");
+
+      launchConfetti();
+
+    } catch (err) {
+      clearInterval(tipTimer);
+      console.error("Onboarding generation error:", err);
+      statusEl.textContent = "Something went wrong";
+      countEl.textContent = err.message || "Could not generate stories. Check your API key.";
+      barEl.style.width = "0%";
+      tipEl.textContent = "";
+
+      // Save whatever we generated so far
+      if (storiesCreated > 0) {
+        localStorage.setItem("rb_generated", JSON.stringify(state.generatedStories));
+        const userTopics = obGeneratedTopics.map(t => ({ id: t.id, label: t.label, icon: t.icon, color: t.color }));
+        saveUserTopics(userTopics);
+        loadUserTopics();
+      }
+
+      // Add a continue button so they're not stuck
+      const container = document.getElementById("ob-step-3");
+      const btn = document.createElement("button");
+      btn.className = "ob-primary-btn";
+      btn.style.marginTop = "24px";
+      btn.textContent = storiesCreated > 0 ? "Continue with what we have" : "Continue without stories";
+      btn.onclick = () => {
+        updateObStep(4);
+        document.getElementById("ob-ready-msg").textContent = storiesCreated > 0
+          ? `${storiesCreated} stories are ready. You can generate more in the app!`
+          : "You can generate stories from the app anytime.";
+        document.getElementById("ob-ready-topics").innerHTML = obGeneratedTopics.map((t, i) =>
+          `<div class="ob-ready-topic" style="animation-delay:${i * 0.1}s"><span>${t.icon}</span> ${t.label}</div>`
+        ).join("");
+      };
+      container.appendChild(btn);
+    }
+  }
+
+  async function generateTopicNames(interests) {
+    const provider = state.settings.apiProvider || "openai";
+    const apiKey = state.settings.apiKey;
+
+    const topicColors = ["#E53935", "#1E88E5", "#43A047", "#FB8C00", "#8E24AA", "#00897B"];
+
+    const systemPrompt = `You generate reading topic names for a children's reading app. Given a parent's description of their child's interests, create exactly 6 unique topic names.
+
+Each topic should:
+- Be specific and exciting to a child (not generic)
+- Be 2-4 words long
+- Have a fun, relevant emoji icon
+
+Respond with ONLY this JSON:
+{
+  "topics": [
+    {"name": "Topic Name", "icon": "emoji"},
+    {"name": "Topic Name", "icon": "emoji"},
+    {"name": "Topic Name", "icon": "emoji"},
+    {"name": "Topic Name", "icon": "emoji"},
+    {"name": "Topic Name", "icon": "emoji"},
+    {"name": "Topic Name", "icon": "emoji"}
+  ]
+}`;
+
+    const userPrompt = `My child's interests: ${interests}
+
+Generate 6 fun, specific reading topics based on these interests.`;
+
+    let text;
+    if (provider === "openai") {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
+          temperature: 0.8,
+          max_tokens: 500,
+          response_format: { type: "json_object" }
+        })
+      });
+      if (!response.ok) {
+        const errBody = await response.text();
+        let errMsg = `API error (${response.status})`;
+        try { const j = JSON.parse(errBody); if (j.error?.message) errMsg = j.error.message; } catch (_) {}
+        throw new Error(errMsg);
+      }
+      const data = await response.json();
+      text = data.choices[0].message.content;
+    } else {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-5-20250929",
+          max_tokens: 500,
+          system: systemPrompt,
+          messages: [{ role: "user", content: userPrompt }]
+        })
+      });
+      if (!response.ok) {
+        const errBody = await response.text();
+        let errMsg = `API error (${response.status})`;
+        try { const j = JSON.parse(errBody); if (j.error?.message) errMsg = j.error.message; } catch (_) {}
+        throw new Error(errMsg);
+      }
+      const data = await response.json();
+      text = data.content[0].text;
+    }
+
+    // Parse response
+    let jsonStr = text;
+    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) jsonStr = jsonMatch[1];
+    const objMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (objMatch) jsonStr = objMatch[0];
+    const parsed = JSON.parse(jsonStr);
+
+    return parsed.topics.map((t, i) => ({
+      id: t.name.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, "-"),
+      label: t.name,
+      icon: t.icon,
+      color: topicColors[i % topicColors.length]
+    }));
+  }
+
+  function finishOnboarding() {
+    // Mark onboarded
+    localStorage.setItem("rb_onboarded", "true");
+
+    // Save to cloud with onboarded flag
+    if (firebaseDB && firebaseUser) {
+      const userTopics = JSON.parse(localStorage.getItem("rb_user_topics") || "[]");
+      firebaseDB.collection("users").doc(firebaseUser.uid).set({
+        onboarded: true,
+        userTopics: userTopics
+      }, { merge: true }).catch(err => console.warn("Failed to save onboarding status:", err));
+    }
+
+    saveToCloud();
+    showAppView();
+  }
+
+  // --- Logo Navigation ---
+
+  function setupLogoNavigation() {
+    const logo = $(".logo");
+    if (!logo) return;
+    logo.style.cursor = "pointer";
+    logo.addEventListener("click", () => {
+      if (firebaseUser) {
+        showLandingPage();
+      }
+    });
+  }
+
   // --- Init ---
   function init() {
     // Always pick up API key from config.js if present and settings don't have one
@@ -303,6 +800,7 @@
       }
     }
 
+    loadUserTopics();
     updateStreak();
     buildTopicGrid();
     setupNavigation();
@@ -314,6 +812,8 @@
     addAPISettingsUI();
     addSyncSettingsUI();
     setupModeSelector();
+    setupLandingPage();
+    setupLogoNavigation();
     initFirebase();
   }
 
