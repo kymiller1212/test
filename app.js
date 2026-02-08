@@ -846,6 +846,10 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
       }
       markWordBankTapped(cleanWord);
     }
+    // Mark span so it shows red when it becomes a "done" line
+    if (cleanWord && state.tappedWords.has(cleanWord)) {
+      span.classList.add("word-helped");
+    }
 
     if (state.syllableMode) {
       const syllDiv = span.querySelector(".syllables");

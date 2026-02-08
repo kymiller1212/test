@@ -1734,6 +1734,10 @@ body {
   color: var(--green-dark);
 }
 
+.reader-body.mode-line .word.vline-done.word-helped {
+  color: #D32F2F;
+}
+
 .reader-body.mode-line .word.vline-active {
   opacity: 1;
   position: relative;
