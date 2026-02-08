@@ -515,63 +515,96 @@
     const provider = state.settings.apiProvider || "openai";
     const apiKey = state.settings.apiKey;
 
-    const readingLevel = level === 1 ? "2nd grade" : "3rd grade";
-    const sentenceLength = level === 1 ? "5-10 words" : "8-15 words";
-    const paragraphs = level === 1 ? "4 short paragraphs (2-3 sentences each)" : "5 paragraphs (2-4 sentences each)";
-    const complexity = level === 1 ? "Use only simple, common words" : "Use grade-appropriate vocabulary with some challenging words";
+    let levelRules, exampleStory;
 
-    const systemPrompt = `You are a children's reading content creator specializing in materials for children with dyslexia. Create 3 different short reading passages about the given topic.
+    if (level === 1) {
+      levelRules = `LEVEL 1 — 2nd Grade Reading Level
+- Target: approximately 90-100 words per story
+- Use 4 paragraphs with 3 sentences each (about 12 sentences total)
+- Average sentence length: 7-8 words. Keep ALL sentences under 12 words
+- Use simple, common words a 2nd grader knows (e.g. "big" not "enormous")
+- Avoid multi-syllable words when a shorter word works
+- Each paragraph should be about 20-25 words
+- Short, punchy sentences with subject-verb-object structure
+- Use periods, not semicolons or complex punctuation`;
 
-Rules for each story:
-- Reading level: ${readingLevel}
-- ${complexity}
-- Keep sentences ${sentenceLength}
-- Use ${paragraphs}
-- Make it fun, engaging, and age-appropriate
-- Be factually accurate when discussing real people/things
-- Each story should cover a DIFFERENT aspect of the topic
+      exampleStory = `Here is an example of the RIGHT length and style for Level 1:
+{
+  "title": "How Football Works",
+  "content": [
+    "Football is a fun and exciting sport. Two teams play against each other. Each team has 11 players on the field at a time.",
+    "The goal is to get the ball into the end zone. You can run with the ball or throw it. When you score, it is called a touchdown!",
+    "A touchdown is worth six points. Then you can kick for one more point. A field goal is worth three points.",
+    "Each game has four quarters. The team with the most points at the end wins. Football is a great game to watch and play!"
+  ],
+  "words": ["teams", "players", "end zone", "touchdown", "points", "field goal", "quarters", "score"],
+  "quiz": [
+    {"q": "How many players are on the field per team?", "choices": ["9", "11", "15"], "answer": 1},
+    {"q": "How many points is a touchdown?", "choices": ["Three", "Six", "Ten"], "answer": 1},
+    {"q": "How many quarters are in a game?", "choices": ["Two", "Three", "Four"], "answer": 2}
+  ]
+}`;
+    } else {
+      levelRules = `LEVEL 2 — 3rd Grade Reading Level
+- Target: approximately 130-150 words per story
+- Use 5 paragraphs with 2-3 sentences each (about 11-13 sentences total)
+- Average sentence length: 11-13 words. Some sentences can reach 18 words
+- Use grade-appropriate vocabulary: include 3-4 challenging words per story (e.g. "rivalry", "determination", "spectacular")
+- Each paragraph should be about 25-30 words
+- Use more complex sentence structures: compound sentences with "and", "but", "because", "while"
+- Include more descriptive language and details than Level 1
+- Vary sentence length for natural rhythm (mix short and longer sentences)`;
 
-Respond in this exact JSON format:
+      exampleStory = `Here is an example of the RIGHT length and style for Level 2:
+{
+  "title": "Rivalry with Michigan",
+  "content": [
+    "Every year, Ohio State plays a huge game against Michigan. This rivalry is one of the oldest in college football history. It has been going on since 1897!",
+    "The week before the game, Ohio State fans refuse to say the letter M. They call Michigan \\"That Team Up North\\" instead. Players put a big X over every M on campus.",
+    "The game is always played on the last Saturday of November. Both teams save their best effort for this special day. The stadium is always completely packed with screaming fans.",
+    "Whoever wins the rivalry game gets bragging rights for the whole year. Some of the most exciting moments in college football have happened during this classic matchup.",
+    "Ohio State students and alumni look forward to this game more than any other. Families pass down their love for the Buckeyes from generation to generation."
+  ],
+  "words": ["rivalry", "refuse", "campus", "bragging rights", "alumni", "generation", "matchup", "tradition"],
+  "quiz": [
+    {"q": "When did the Ohio State vs Michigan rivalry start?", "choices": ["1950", "1897", "2001"], "answer": 1},
+    {"q": "What do Ohio State fans refuse to say?", "choices": ["The letter M", "The word football", "Michigan's score"], "answer": 0},
+    {"q": "When is the game always played?", "choices": ["First week of October", "Last Saturday of November", "New Year's Day"], "answer": 1}
+  ]
+}`;
+    }
+
+    const systemPrompt = `You are a children's reading content creator specializing in dyslexia-friendly materials. Create 3 different reading passages about the given topic.
+
+${levelRules}
+
+CRITICAL: Match the length and style of the example below. Each story MUST hit the target word count. Do NOT write shorter stories.
+
+${exampleStory}
+
+Additional rules:
+- Each of the 3 stories must cover a DIFFERENT interesting aspect of the topic
+- Make content fun, engaging, and age-appropriate
+- Be factually accurate when discussing real people, places, or things
+- Include 8 key vocabulary words from each passage in the "words" array
+- Include 3 comprehension questions with 3 multiple-choice options each
+- "answer" is the 0-based index of the correct choice
+
+Respond with ONLY this JSON structure:
 {
   "stories": [
     {
-      "title": "Story 1 Title",
-      "content": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."],
+      "title": "...",
+      "content": ["paragraph1", "paragraph2", "paragraph3", "paragraph4"],
       "words": ["word1", "word2", "word3", "word4", "word5", "word6", "word7", "word8"],
-      "quiz": [
-        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 0},
-        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 1},
-        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 2}
-      ]
+      "quiz": [{"q": "...", "choices": ["A", "B", "C"], "answer": 0}, {"q": "...", "choices": ["A", "B", "C"], "answer": 1}, {"q": "...", "choices": ["A", "B", "C"], "answer": 2}]
     },
-    {
-      "title": "Story 2 Title",
-      "content": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."],
-      "words": ["word1", "word2", "word3", "word4", "word5", "word6", "word7", "word8"],
-      "quiz": [
-        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 0},
-        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 1},
-        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 2}
-      ]
-    },
-    {
-      "title": "Story 3 Title",
-      "content": ["Paragraph 1.", "Paragraph 2.", "Paragraph 3.", "Paragraph 4."],
-      "words": ["word1", "word2", "word3", "word4", "word5", "word6", "word7", "word8"],
-      "quiz": [
-        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 0},
-        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 1},
-        {"q": "Question?", "choices": ["A", "B", "C"], "answer": 2}
-      ]
-    }
+    { ... },
+    { ... }
   ]
-}
+}`;
 
-Each "words" array: 8 key vocabulary words from the passage.
-Each "quiz" array: 3 comprehension questions with 3 choices. "answer" is the 0-based index.
-IMPORTANT: Return ONLY valid JSON, no other text.`;
-
-    const userPrompt = `Write 3 different ${readingLevel} reading level passages about: ${topicLabel}`;
+    const userPrompt = `Write 3 different ${level === 1 ? "2nd grade" : "3rd grade"} reading level passages about: ${topicLabel}. Remember: each story must be ${level === 1 ? "90-100" : "130-150"} words with ${level === 1 ? "4" : "5"} full paragraphs.`;
 
     let text;
 
@@ -588,8 +621,8 @@ IMPORTANT: Return ONLY valid JSON, no other text.`;
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          temperature: 0.8,
-          max_tokens: 4000,
+          temperature: 0.7,
+          max_tokens: 6000,
           response_format: { type: "json_object" },
         }),
       });
@@ -618,7 +651,7 @@ IMPORTANT: Return ONLY valid JSON, no other text.`;
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-5-20250929",
-          max_tokens: 4000,
+          max_tokens: 6000,
           system: systemPrompt,
           messages: [{ role: "user", content: userPrompt }],
         }),
