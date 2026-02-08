@@ -159,10 +159,16 @@
         <!-- Status area for practice modes -->
         <div id="practice-status" class="practice-status hidden">
           <div id="practice-prompt" class="practice-prompt"></div>
-          <button id="practice-mic-btn" class="practice-mic-btn" aria-label="Start speaking">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
-            <span>Tap & Read Aloud</span>
-          </button>
+          <div class="practice-buttons-row">
+            <button id="practice-mic-btn" class="practice-mic-btn" aria-label="Start speaking">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+              <span>Tap & Read Aloud</span>
+            </button>
+            <button id="practice-next-btn" class="practice-next-btn" aria-label="Next">
+              <span>Next</span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+            </button>
+          </div>
           <button id="practice-hear-btn" class="practice-hear-btn" aria-label="Hear the word">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8.5v7a4.47 4.47 0 0 0 2.5-3.5z"/></svg>
             <span>Help Me</span>

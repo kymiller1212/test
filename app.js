@@ -1398,15 +1398,23 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
       w.classList.remove("word-current", "word-done", "word-correct-flash", "word-wrong-flash");
     });
 
+    // Show only the paragraph containing the current word
     if (allWords.length > 0) {
       allWords[0].classList.add("word-current");
-      allWords[0].scrollIntoView({ behavior: "smooth", block: "center" });
+      showActiveWordParagraph(allWords[0]);
     }
 
     updatePracticeProgress(0, allWords.length);
     updatePracticePrompt();
     setupPracticeMic();
     setupPracticeHearBtn();
+    setupPracticeNextBtn();
+  }
+
+  function showActiveWordParagraph(wordEl) {
+    $$("#reader-body .paragraph").forEach((p) => p.classList.remove("active-word-para"));
+    const para = wordEl.closest(".paragraph");
+    if (para) para.classList.add("active-word-para");
   }
 
   function updatePracticeProgress(current, total) {
@@ -1420,8 +1428,7 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
     if (state.readingMode === "word") {
       const words = state.practiceWords;
       if (state.wordIndex < words.length) {
-        const wordText = words[state.wordIndex].textContent.replace(/[.,!?;:]/g, "");
-        prompt.textContent = `Say this word: "${wordText}"`;
+        prompt.textContent = "Read the word above!";
       } else {
         prompt.textContent = "All done!";
       }
@@ -1604,7 +1611,7 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
       if (state.wordIndex < state.practiceWords.length) {
         const nextWord = state.practiceWords[state.wordIndex];
         nextWord.classList.add("word-current");
-        nextWord.scrollIntoView({ behavior: "smooth", block: "center" });
+        showActiveWordParagraph(nextWord);
         updatePracticePrompt();
       } else {
         practiceComplete();
@@ -1637,7 +1644,7 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
         if (state.wordIndex < state.practiceWords.length) {
           const nextWord = state.practiceWords[state.wordIndex];
           nextWord.classList.add("word-current");
-          nextWord.scrollIntoView({ behavior: "smooth", block: "center" });
+          showActiveWordParagraph(nextWord);
           updatePracticePrompt();
         } else {
           practiceComplete();
@@ -1645,6 +1652,68 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
       }, 800);
       state.practiceTimers.push(t);
     });
+  }
+
+  // --- Next Button ---
+  function setupPracticeNextBtn() {
+    const nextBtn = $("#practice-next-btn");
+    const newNextBtn = nextBtn.cloneNode(true);
+    nextBtn.parentNode.replaceChild(newNextBtn, nextBtn);
+
+    newNextBtn.addEventListener("click", () => {
+      if (state.readingMode === "word") {
+        advanceWordManually();
+      } else if (state.readingMode === "line") {
+        advanceLineManually();
+      }
+    });
+  }
+
+  function advanceWordManually() {
+    const words = state.practiceWords;
+    if (state.wordIndex >= words.length) return;
+
+    const currentWordEl = words[state.wordIndex];
+    currentWordEl.classList.remove("word-current");
+    currentWordEl.classList.add("word-done");
+    state.wordIndex++;
+    state.practiceAttempts = 0;
+    state.helpInProgress = false;
+
+    updatePracticeProgress(state.wordIndex, state.practiceWords.length);
+
+    if (state.wordIndex < state.practiceWords.length) {
+      const nextWord = state.practiceWords[state.wordIndex];
+      nextWord.classList.add("word-current");
+      showActiveWordParagraph(nextWord);
+      updatePracticePrompt();
+    } else {
+      practiceComplete();
+    }
+  }
+
+  function advanceLineManually() {
+    const lines = state.practiceLines;
+    if (state.lineIndex >= lines.length) return;
+
+    const currentLine = lines[state.lineIndex];
+    currentLine.element.classList.remove("line-current");
+    currentLine.element.classList.add("line-done");
+    state.lineIndex++;
+    state.practiceAttempts = 0;
+    state.helpInProgress = false;
+
+    updatePracticeProgress(state.lineIndex, state.practiceLines.length);
+
+    if (state.lineIndex < state.practiceLines.length) {
+      const nextLine = state.practiceLines[state.lineIndex];
+      nextLine.element.classList.remove("line-hidden");
+      nextLine.element.classList.add("line-current");
+      nextLine.element.scrollIntoView({ behavior: "smooth", block: "center" });
+      updatePracticePrompt();
+    } else {
+      practiceComplete();
+    }
   }
 
   // --- Line-by-Line Mode ---
@@ -1707,6 +1776,7 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
     updatePracticePrompt();
     setupPracticeMic();
     setupPracticeHearBtn();
+    setupPracticeNextBtn();
   }
 
   function handleLineResult(transcript) {
