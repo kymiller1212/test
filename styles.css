@@ -1640,6 +1640,24 @@ body {
   animation: shake 0.4s ease;
 }
 
+/* Practice status pinned to bottom in line mode */
+.practice-status.bottom-fixed {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  border-radius: var(--radius) var(--radius) 0 0;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+  margin: 0;
+  border-bottom: none;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
+
+.reader-body.mode-line {
+  padding-bottom: 200px;
+}
+
 /* --- Line-by-Line Mode Styles --- */
 .reader-body.mode-line .paragraph {
   transition: all 0.4s ease;

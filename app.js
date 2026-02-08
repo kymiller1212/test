@@ -1308,6 +1308,9 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
     const practiceStatus = $("#practice-status");
     const wordBank = $("#word-bank");
 
+    // Always remove bottom-fixed first
+    practiceStatus.classList.remove("bottom-fixed");
+
     if (mode === "normal") {
       readAloudBtn.classList.remove("hidden");
       practiceProgress.classList.add("hidden");
@@ -1329,6 +1332,7 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
       stopBtn.classList.add("hidden");
       practiceProgress.classList.remove("hidden");
       practiceStatus.classList.remove("hidden");
+      practiceStatus.classList.add("bottom-fixed");
       wordBank.classList.add("hidden");
       readerBody.classList.add("mode-line");
       initLineMode();
@@ -1382,9 +1386,11 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
     // Remove complete banners
     $$(".practice-complete-banner").forEach((b) => b.remove());
 
-    // Reset mic button
+    // Reset mic button and position
     const micBtn = $("#practice-mic-btn");
     if (micBtn) micBtn.classList.remove("recording");
+    const status = $("#practice-status");
+    if (status) status.classList.remove("bottom-fixed");
   }
 
   // --- Word-by-Word Mode ---
