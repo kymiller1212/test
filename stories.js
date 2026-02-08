@@ -1,423 +1,493 @@
 // Story database - 2nd grade reading level, short sentences, simple words
 // Each story has: topic, title, content (broken into paragraphs), keywords, quizQuestions
 const STORIES = [
-  // === DINOSAURS ===
+  // === OHIO STATE FOOTBALL ===
   {
-    topic: "dinosaurs",
-    title: "The Big T-Rex",
-    icon: "🦕",
+    topic: "ohio-state",
+    title: "The Ohio State Buckeyes",
+    icon: "🌰",
     content: [
-      "The T-Rex was one of the biggest meat eaters ever. It lived a long, long time ago. No people were alive back then.",
-      "T-Rex had very short arms. But its legs were big and strong. It could run fast to catch its food.",
-      "Its teeth were as big as bananas! It had more than 50 teeth. When one fell out, a new one grew in.",
-      "T-Rex babies were small and may have had fuzzy feathers. They grew up to be 40 feet long. That is as long as a school bus!"
+      "Ohio State is a big football team. They play in Columbus, Ohio. Their team name is the Buckeyes.",
+      "A buckeye is a type of nut. It comes from a tree that grows in Ohio. The nut is brown with a light spot. It looks like a deer's eye!",
+      "Their colors are scarlet and gray. Scarlet is a deep red color. The fans wear red to every game.",
+      "Ohio State plays in a huge stadium. It is called The Horseshoe. It holds over 100,000 fans. It gets very loud on game day!"
     ],
-    words: ["T-Rex", "meat", "alive", "arms", "teeth", "bananas", "feathers", "school bus"],
+    words: ["Buckeyes", "Columbus", "scarlet", "stadium", "Horseshoe", "fans", "nut", "game day"],
     quiz: [
-      { q: "What kind of eater was the T-Rex?", choices: ["Meat eater", "Plant eater", "Fish eater"], answer: 0 },
-      { q: "How big were its teeth?", choices: ["As big as grapes", "As big as bananas", "As big as apples"], answer: 1 },
-      { q: "How long was a grown T-Rex?", choices: ["10 feet", "20 feet", "40 feet"], answer: 2 }
+      { q: "What is Ohio State's team name?", choices: ["The Bears", "The Buckeyes", "The Eagles"], answer: 1 },
+      { q: "What is a buckeye?", choices: ["A bird", "A type of nut", "A fish"], answer: 1 },
+      { q: "What is their stadium called?", choices: ["The Horseshoe", "The Big House", "The Dome"], answer: 0 }
     ]
   },
   {
-    topic: "dinosaurs",
-    title: "Plant-Eating Giants",
-    icon: "🦕",
+    topic: "ohio-state",
+    title: "Script Ohio",
+    icon: "🎺",
     content: [
-      "Not all dinosaurs ate meat. Many of them ate only plants. These dinosaurs were very big and gentle.",
-      "The Brontosaurus had a very long neck. It used its neck to reach leaves high up in trees. It ate all day long.",
-      "The Triceratops had three horns on its head. It also had a big bony frill. The horns helped keep it safe from other dinosaurs.",
-      "The Stegosaurus had big plates on its back. It also had spikes on its tail. It was slow but could protect itself well."
+      "Ohio State has a famous marching band. The band plays at every home game. They are called the best damn band in the land!",
+      "The band does a special trick. They march and spell out the word Ohio in cursive on the field. This is called Script Ohio.",
+      "One lucky person gets to dot the i. They run out and take a big bow. The crowd goes wild every time!",
+      "The band has been doing Script Ohio for a very long time. Fans love it so much. It is one of the best traditions in all of football."
     ],
-    words: ["plants", "gentle", "neck", "leaves", "horns", "frill", "plates", "spikes"],
+    words: ["marching", "band", "cursive", "script", "dot", "bow", "crowd", "tradition"],
     quiz: [
-      { q: "What did plant-eating dinosaurs eat?", choices: ["Meat", "Fish", "Plants"], answer: 2 },
-      { q: "How many horns did Triceratops have?", choices: ["One", "Two", "Three"], answer: 2 },
-      { q: "What did Stegosaurus have on its back?", choices: ["Wings", "Plates", "Fur"], answer: 1 }
+      { q: "What does the band spell on the field?", choices: ["Buckeyes", "Ohio", "Go Team"], answer: 1 },
+      { q: "What does the lucky person do?", choices: ["Dot the i", "Play a drum", "Throw a ball"], answer: 0 },
+      { q: "What is the band called?", choices: ["The Marching Bucks", "The Best Damn Band in the Land", "The Big Band"], answer: 1 }
     ]
   },
   {
-    topic: "dinosaurs",
-    title: "Digging Up Dinosaur Bones",
-    icon: "🦴",
+    topic: "ohio-state",
+    title: "Buckeye Game Day",
+    icon: "🏟️",
     content: [
-      "How do we know about dinosaurs? We find their bones in the ground. People who dig up old bones are called paleontologists.",
-      "They use small brushes and tools. They must be very careful. The bones are old and can break easily.",
-      "Sometimes they find a whole skeleton. Other times they find just one bone or a tooth. Every piece helps us learn.",
-      "Some bones are in museums now. You can go see them! They are put together to show what the dinosaur looked like."
+      "Game day at Ohio State is so much fun. Fans start to gather early in the morning. They cook food and play games outside the stadium.",
+      "The players run onto the field. The crowd cheers as loud as they can. You can feel the ground shake from all the noise!",
+      "The team wears scarlet jerseys at home. They have a big O on their helmets. Players earn stickers for good plays.",
+      "When Ohio State scores, the fans sing and cheer. Everyone is happy. Win or lose, the fans always love their Buckeyes."
     ],
-    words: ["bones", "paleontologists", "brushes", "careful", "skeleton", "tooth", "museums", "together"],
+    words: ["gather", "stadium", "cheers", "jerseys", "helmets", "stickers", "scores", "sing"],
     quiz: [
-      { q: "What do paleontologists dig up?", choices: ["Gold", "Old bones", "Rocks"], answer: 1 },
-      { q: "Why must they be careful?", choices: ["Bones can break", "It is dark", "It is cold"], answer: 0 },
-      { q: "Where can you see dinosaur bones?", choices: ["At the park", "At a museum", "At school"], answer: 1 }
-    ]
-  },
-
-  // === SPACE ===
-  {
-    topic: "space",
-    title: "Our Sun and Stars",
-    icon: "⭐",
-    content: [
-      "The Sun is a star. It is the closest star to Earth. It gives us light and heat every day.",
-      "The Sun is very, very hot. It is made of burning gas. You should never look right at it.",
-      "At night, we can see many other stars. They look tiny because they are so far away. But they are really very big.",
-      "Some stars are even bigger than our Sun! Stars can be red, blue, white, or yellow. Our Sun is a yellow star."
-    ],
-    words: ["Sun", "star", "Earth", "light", "heat", "gas", "tiny", "yellow"],
-    quiz: [
-      { q: "What is the Sun?", choices: ["A planet", "A star", "A moon"], answer: 1 },
-      { q: "Why do other stars look tiny?", choices: ["They are small", "They are far away", "They are cold"], answer: 1 },
-      { q: "What color is our Sun?", choices: ["Red", "Blue", "Yellow"], answer: 2 }
-    ]
-  },
-  {
-    topic: "space",
-    title: "The Moon",
-    icon: "🌙",
-    content: [
-      "The Moon goes around the Earth. It takes about one month to go all the way around. We can see it at night.",
-      "The Moon does not make its own light. It shines because the Sun's light bounces off it. That is why it glows.",
-      "Sometimes the Moon looks round and full. Other times it looks like a thin sliver. These shapes are called phases.",
-      "People have walked on the Moon! They wore special suits. They found that the Moon is covered in dust and rocks."
-    ],
-    words: ["Moon", "month", "shines", "bounces", "glows", "round", "phases", "dust"],
-    quiz: [
-      { q: "What does the Moon go around?", choices: ["The Sun", "The Earth", "Mars"], answer: 1 },
-      { q: "Why does the Moon shine?", choices: ["It makes light", "Sunlight bounces off it", "It is on fire"], answer: 1 },
-      { q: "What is on the Moon?", choices: ["Water", "Trees", "Dust and rocks"], answer: 2 }
-    ]
-  },
-  {
-    topic: "space",
-    title: "The Planets",
-    icon: "🪐",
-    content: [
-      "There are eight planets that go around our Sun. Earth is one of them. We live on the third planet from the Sun.",
-      "Mercury and Venus are closer to the Sun than Earth. They are very hot. Mars is a little farther away and is very cold.",
-      "Jupiter is the biggest planet. It is so big that all the other planets could fit inside it! It has a big red spot that is a giant storm.",
-      "Saturn has beautiful rings around it. The rings are made of ice and rock. Neptune is the farthest planet and is very blue."
-    ],
-    words: ["planets", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "rings", "Neptune"],
-    quiz: [
-      { q: "How many planets go around our Sun?", choices: ["Six", "Eight", "Ten"], answer: 1 },
-      { q: "Which is the biggest planet?", choices: ["Earth", "Saturn", "Jupiter"], answer: 2 },
-      { q: "What are Saturn's rings made of?", choices: ["Gas", "Ice and rock", "Water"], answer: 1 }
+      { q: "What do fans do before the game?", choices: ["Sleep", "Cook food and play games", "Go swimming"], answer: 1 },
+      { q: "What do players earn for good plays?", choices: ["Money", "Stickers", "Trophies"], answer: 1 },
+      { q: "What do fans do when Ohio State scores?", choices: ["Leave", "Sing and cheer", "Sit quietly"], answer: 1 }
     ]
   },
 
-  // === ANIMALS ===
+  // === AMERICAN FOOTBALL ===
   {
-    topic: "animals",
-    title: "Dogs Are Great Pets",
-    icon: "🐕",
+    topic: "american-football",
+    title: "How Football Works",
+    icon: "🏈",
     content: [
-      "Dogs are one of the most popular pets in the world. They love to play and be with people. Dogs are very loyal.",
-      "There are many kinds of dogs. Some are big, like Great Danes. Some are small, like Chihuahuas. Each kind is called a breed.",
-      "Dogs can learn tricks. You can teach them to sit, stay, and shake hands. They learn best with treats and kind words.",
-      "Dogs need walks every day. They also need fresh water and good food. If you take care of a dog, it will be your best friend."
+      "Football is a fun and exciting sport. Two teams play against each other. Each team has 11 players on the field at a time.",
+      "The goal is to get the ball into the end zone. You can run with the ball or throw it. When you score, it is called a touchdown!",
+      "A touchdown is worth six points. Then you can kick for one more point. A field goal is worth three points.",
+      "Each game has four quarters. The team with the most points at the end wins. Football is a great game to watch and play!"
     ],
-    words: ["popular", "loyal", "breed", "tricks", "treats", "walks", "fresh", "friend"],
+    words: ["teams", "players", "end zone", "touchdown", "points", "field goal", "quarters", "score"],
     quiz: [
-      { q: "What are dogs known for being?", choices: ["Lazy", "Loyal", "Loud"], answer: 1 },
-      { q: "What is a kind of dog called?", choices: ["A type", "A breed", "A pack"], answer: 1 },
-      { q: "What do dogs need every day?", choices: ["Baths", "Walks", "Toys"], answer: 1 }
+      { q: "How many players are on the field per team?", choices: ["9", "11", "15"], answer: 1 },
+      { q: "How many points is a touchdown?", choices: ["Three", "Six", "Ten"], answer: 1 },
+      { q: "How many quarters are in a game?", choices: ["Two", "Three", "Four"], answer: 2 }
     ]
   },
   {
-    topic: "animals",
-    title: "Life in the Ocean",
-    icon: "🐠",
+    topic: "american-football",
+    title: "Positions in Football",
+    icon: "🏈",
     content: [
-      "The ocean is home to many animals. Fish, whales, dolphins, and sharks all live in the sea. So do tiny creatures you cannot even see!",
-      "Dolphins are very smart. They talk to each other with clicks and whistles. They love to jump out of the water and play.",
-      "Sea turtles are amazing swimmers. They can swim very far across the ocean. Mother turtles lay their eggs on sandy beaches.",
-      "Coral reefs are like underwater cities. Many colorful fish live near them. We need to keep the ocean clean so these animals stay safe."
+      "There are many positions in football. The quarterback is the leader of the offense. He throws the ball to other players.",
+      "Wide receivers catch the ball. They run fast down the field. Running backs carry the ball and try to run past the other team.",
+      "The offensive line are the big guys up front. They block the other team. They keep the quarterback safe so he can throw.",
+      "On defense, there are linemen, linebackers, and defensive backs. Their job is to stop the other team from scoring. Defense wins games!"
     ],
-    words: ["ocean", "dolphins", "sharks", "clicks", "whistles", "turtles", "coral", "reefs"],
+    words: ["quarterback", "offense", "receivers", "running back", "offensive line", "block", "defense", "linemen"],
     quiz: [
-      { q: "How do dolphins talk to each other?", choices: ["By singing", "With clicks and whistles", "By waving"], answer: 1 },
-      { q: "Where do sea turtles lay eggs?", choices: ["In the water", "On sandy beaches", "In caves"], answer: 1 },
-      { q: "What are coral reefs like?", choices: ["Mountains", "Underwater cities", "Forests"], answer: 1 }
+      { q: "Who throws the ball?", choices: ["The running back", "The quarterback", "The kicker"], answer: 1 },
+      { q: "What do wide receivers do?", choices: ["Block", "Kick", "Catch the ball"], answer: 2 },
+      { q: "What does the offensive line do?", choices: ["Score points", "Block the other team", "Catch passes"], answer: 1 }
     ]
   },
   {
-    topic: "animals",
-    title: "Amazing Cats",
-    icon: "🐱",
+    topic: "american-football",
+    title: "The Super Bowl",
+    icon: "🏆",
     content: [
-      "Cats are soft and furry pets. They love to sleep in warm spots. A cat can sleep up to 16 hours a day!",
-      "Cats can see very well in the dark. Their eyes get big to let in more light. This helps them hunt at night.",
-      "A cat's whiskers help it feel things around it. The whiskers can tell if a space is too small to fit through. They are like rulers!",
-      "Cats purr when they are happy. The soft rumble sound is very calming. Petting a cat can make you feel happy too."
+      "The Super Bowl is the biggest football game of the year. The two best teams in the NFL play each other. Millions of people watch it on TV.",
+      "The game is played at a different city each year. There is a big halftime show with famous singers. It is like a giant party!",
+      "The winning team gets a shiny trophy. It is called the Lombardi Trophy. The players also get a special ring.",
+      "Many people have Super Bowl parties. They eat snacks and watch the game with friends. It is one of the most fun days of the year!"
     ],
-    words: ["furry", "sleep", "dark", "whiskers", "space", "rulers", "purr", "calming"],
+    words: ["Super Bowl", "NFL", "halftime", "trophy", "Lombardi", "ring", "parties", "snacks"],
     quiz: [
-      { q: "How many hours can a cat sleep?", choices: ["8 hours", "12 hours", "16 hours"], answer: 2 },
-      { q: "What helps a cat feel things around it?", choices: ["Its tail", "Its whiskers", "Its paws"], answer: 1 },
-      { q: "What do cats do when happy?", choices: ["Bark", "Purr", "Hop"], answer: 1 }
-    ]
-  },
-
-  // === SPORTS ===
-  {
-    topic: "sports",
-    title: "Playing Soccer",
-    icon: "⚽",
-    content: [
-      "Soccer is played all over the world. Two teams try to kick a ball into a goal. The team with the most goals wins.",
-      "You can use your feet, head, and chest in soccer. But you cannot use your hands! Only the goalie can touch the ball with their hands.",
-      "Running is a big part of soccer. Players run up and down the field. They pass the ball to their teammates.",
-      "Soccer is a great way to have fun and stay healthy. You can play on a team or just kick the ball with your friends."
-    ],
-    words: ["soccer", "teams", "goal", "goalie", "field", "pass", "teammates", "healthy"],
-    quiz: [
-      { q: "How do you score in soccer?", choices: ["Throw the ball", "Kick ball into the goal", "Carry the ball"], answer: 1 },
-      { q: "Who can touch the ball with their hands?", choices: ["Anyone", "The goalie", "No one"], answer: 1 },
-      { q: "What body parts can players use?", choices: ["Hands only", "Feet, head, and chest", "Just feet"], answer: 1 }
-    ]
-  },
-  {
-    topic: "sports",
-    title: "Basketball Fun",
-    icon: "🏀",
-    content: [
-      "Basketball is a fast and exciting sport. Players try to throw a ball through a hoop. The hoop is 10 feet high.",
-      "You dribble the ball by bouncing it on the floor. You can also pass it to a teammate. Then someone shoots it at the basket.",
-      "Each basket is worth two or three points. If you are close, it is two points. If you are far away, it is three points.",
-      "Basketball players need to be quick. They run, jump, and spin. It is a fun way to exercise and play with friends."
-    ],
-    words: ["basketball", "hoop", "dribble", "bouncing", "pass", "basket", "points", "exercise"],
-    quiz: [
-      { q: "How high is the basketball hoop?", choices: ["8 feet", "10 feet", "12 feet"], answer: 1 },
-      { q: "What is dribbling?", choices: ["Throwing the ball", "Bouncing the ball", "Kicking the ball"], answer: 1 },
-      { q: "How many points for a far away shot?", choices: ["One", "Two", "Three"], answer: 2 }
+      { q: "What is the Super Bowl?", choices: ["A bowling game", "The biggest football game", "A cooking show"], answer: 1 },
+      { q: "What is the trophy called?", choices: ["The Gold Cup", "The Lombardi Trophy", "The Big Prize"], answer: 1 },
+      { q: "What do the winners get to wear?", choices: ["A crown", "A special ring", "A cape"], answer: 1 }
     ]
   },
 
-  // === SUPERHEROES ===
+  // === AMON-RA ST. BROWN ===
   {
-    topic: "superheroes",
-    title: "What Makes a Superhero?",
-    icon: "🦸",
+    topic: "amon-ra",
+    title: "Meet Amon-Ra St. Brown",
+    icon: "🦁",
     content: [
-      "Superheroes are brave people who help others. Some have special powers. Others are just very smart and strong.",
-      "Many superheroes can fly. Some can lift heavy things. Others can run faster than anyone else. Their powers help them save people.",
-      "Superheroes also have weaknesses. This makes them more real. Even heroes need help sometimes.",
-      "You do not need powers to be a hero. Being kind, brave, and helping others makes you a hero too. Heroes are all around us!"
+      "Amon-Ra St. Brown is a football star. He plays wide receiver for the Detroit Lions. He catches passes and scores touchdowns.",
+      "His name comes from an Egyptian sun god. His dad picked special names for all his sons. Amon-Ra thinks his name is really cool.",
+      "He went to college at USC. That is a big school in Los Angeles. He was a great player there before joining the NFL.",
+      "Amon-Ra works very hard every day. He practices catching and running. His hard work has made him one of the best receivers in football!"
     ],
-    words: ["brave", "powers", "strong", "lift", "save", "weaknesses", "kind", "hero"],
+    words: ["receiver", "Detroit", "Lions", "Egyptian", "USC", "college", "practices", "catches"],
     quiz: [
-      { q: "What do superheroes do?", choices: ["Help others", "Sleep all day", "Hide away"], answer: 0 },
-      { q: "Do all superheroes have powers?", choices: ["Yes", "No, some are just smart and strong", "Only at night"], answer: 1 },
-      { q: "What makes you a hero in real life?", choices: ["Having powers", "Being kind and helping others", "Being tall"], answer: 1 }
+      { q: "What team does Amon-Ra play for?", choices: ["The Bears", "The Detroit Lions", "The Cowboys"], answer: 1 },
+      { q: "Where does his name come from?", choices: ["A movie", "An Egyptian sun god", "A video game"], answer: 1 },
+      { q: "What college did he go to?", choices: ["Ohio State", "Michigan", "USC"], answer: 2 }
+    ]
+  },
+  {
+    topic: "amon-ra",
+    title: "Amon-Ra's Amazing Catches",
+    icon: "🌟",
+    content: [
+      "Amon-Ra St. Brown can catch almost anything. He has very strong hands. The ball sticks to them like glue!",
+      "He runs crisp routes on the field. A route is the path a receiver runs. Good routes help him get open to catch the ball.",
+      "In one amazing game, he caught the winning touchdown as time ran out! The Lions fans went crazy. It was one of the best plays ever.",
+      "Amon-Ra never gives up on a play. Even when a defender is close, he fights for the ball. That is what makes him so special."
+    ],
+    words: ["catches", "hands", "routes", "path", "winning", "touchdown", "defender", "special"],
+    quiz: [
+      { q: "What is a route in football?", choices: ["A dance move", "The path a receiver runs", "A type of kick"], answer: 1 },
+      { q: "What happened in his amazing game?", choices: ["He kicked a field goal", "He caught the winning touchdown", "He ran 100 yards"], answer: 1 },
+      { q: "What does Amon-Ra never do?", choices: ["Give up", "Practice", "Smile"], answer: 0 }
+    ]
+  },
+  {
+    topic: "amon-ra",
+    title: "The St. Brown Family",
+    icon: "👨‍👩‍👦‍👦",
+    content: [
+      "Amon-Ra comes from an athletic family. His dad was a bodybuilder. His dad won big contests and was very strong.",
+      "He has two brothers who also play football. Their names are Equanimeous and Osiris. All three brothers have cool Egyptian names.",
+      "The brothers grew up playing sports together. They pushed each other to be the best. Family is very important to Amon-Ra.",
+      "His mom is from Germany. Amon-Ra can speak German! He is talented on and off the field. His family is very proud of him."
+    ],
+    words: ["athletic", "bodybuilder", "brothers", "Equanimeous", "Osiris", "Egyptian", "Germany", "proud"],
+    quiz: [
+      { q: "What was Amon-Ra's dad?", choices: ["A teacher", "A bodybuilder", "A chef"], answer: 1 },
+      { q: "How many brothers does he have?", choices: ["One", "Two", "Three"], answer: 1 },
+      { q: "What language can Amon-Ra speak?", choices: ["Spanish", "French", "German"], answer: 2 }
     ]
   },
 
-  // === ROBOTS ===
+  // === GEORGE KITTLE ===
   {
-    topic: "robots",
-    title: "Robots at Work",
-    icon: "🤖",
+    topic: "george-kittle",
+    title: "Meet George Kittle",
+    icon: "🐻",
     content: [
-      "Robots are machines that can do jobs. People build them and tell them what to do. They follow a set of instructions called a program.",
-      "Some robots build cars in factories. They can put parts together very fast. They do not get tired like people do.",
-      "Other robots help doctors. They can hold tools very still during operations. This helps the doctor do a better job.",
-      "There are even robots that clean your house! They roll around the floor and pick up dirt. Some can mow your lawn too."
+      "George Kittle is a football star. He plays tight end for the San Francisco 49ers. He is one of the best tight ends in the whole NFL.",
+      "George grew up in Madison, Wisconsin. His dad also played football. Football runs in the Kittle family!",
+      "He went to college at the University of Iowa. He played great football there. Then the 49ers picked him in the NFL draft.",
+      "George is known for being super tough. He blocks like a lineman and catches like a receiver. He can do it all!"
     ],
-    words: ["robots", "machines", "program", "factories", "doctors", "operations", "clean", "lawn"],
+    words: ["tight end", "49ers", "San Francisco", "Wisconsin", "Iowa", "draft", "tough", "blocks"],
     quiz: [
-      { q: "What tells a robot what to do?", choices: ["A book", "A program", "A whistle"], answer: 1 },
-      { q: "Why are robots good in factories?", choices: ["They are funny", "They don't get tired", "They are small"], answer: 1 },
-      { q: "What can some home robots do?", choices: ["Cook food", "Clean floors", "Do homework"], answer: 1 }
+      { q: "What team does George Kittle play for?", choices: ["The Packers", "The 49ers", "The Bears"], answer: 1 },
+      { q: "What position does he play?", choices: ["Quarterback", "Tight end", "Running back"], answer: 1 },
+      { q: "Where did he go to college?", choices: ["Iowa", "Ohio State", "Michigan"], answer: 0 }
+    ]
+  },
+  {
+    topic: "george-kittle",
+    title: "George Kittle's Big Plays",
+    icon: "💪",
+    content: [
+      "George Kittle loves making big plays. He runs hard after he catches the ball. Tacklers have a tough time bringing him down.",
+      "One time he caught a pass and ran 85 yards for a touchdown! He broke tackles along the way. The crowd went wild!",
+      "George celebrates with a big roar after touchdowns. He pumps his fists and gets the fans excited. His energy is contagious.",
+      "He also loves to block for his teammates. When George blocks, the running back has room to run. He helps his team in every way."
+    ],
+    words: ["tackles", "yards", "touchdown", "celebrates", "roar", "energy", "contagious", "teammates"],
+    quiz: [
+      { q: "How far did George run on his big play?", choices: ["25 yards", "50 yards", "85 yards"], answer: 2 },
+      { q: "What does George do after touchdowns?", choices: ["Sits down", "Celebrates with a roar", "Walks away"], answer: 1 },
+      { q: "What else does George love to do?", choices: ["Block for teammates", "Play soccer", "Take naps"], answer: 0 }
+    ]
+  },
+  {
+    topic: "george-kittle",
+    title: "George Kittle the Wrestling Fan",
+    icon: "🤼",
+    content: [
+      "George Kittle has a fun secret. He loves pro wrestling! He watches it all the time. His favorite wrestlers are his heroes.",
+      "He sometimes does wrestling moves to celebrate. After a big play, he might flex like a wrestler. The fans love it!",
+      "George even got to meet some famous wrestlers. They think he is awesome too. A football player who loves wrestling is pretty cool.",
+      "George says wrestling taught him to be tough. It also taught him to have fun. He brings that energy to every football game he plays."
+    ],
+    words: ["wrestling", "celebrates", "flex", "heroes", "famous", "awesome", "tough", "energy"],
+    quiz: [
+      { q: "What does George Kittle love besides football?", choices: ["Basketball", "Pro wrestling", "Tennis"], answer: 1 },
+      { q: "How does he celebrate big plays?", choices: ["He dances", "He does wrestling moves", "He sings"], answer: 1 },
+      { q: "What did wrestling teach George?", choices: ["To cook", "To be tough and have fun", "To swim"], answer: 1 }
     ]
   },
 
-  // === BUGS & INSECTS ===
+  // === TOM BRADY ===
   {
-    topic: "bugs",
-    title: "Busy Bees",
-    icon: "🐝",
+    topic: "tom-brady",
+    title: "Meet Tom Brady",
+    icon: "🐐",
     content: [
-      "Bees are very busy insects. They fly from flower to flower to collect nectar. Nectar is a sweet liquid inside flowers.",
-      "Bees use the nectar to make honey. They store the honey in their hive. A hive can have thousands of bees living in it!",
-      "The queen bee is the leader. She is the only one who lays eggs. Worker bees take care of the babies and the hive.",
-      "Bees also help flowers grow. When they visit a flower, pollen sticks to them. They carry it to other flowers. This helps new plants grow."
+      "Tom Brady is one of the greatest football players ever. Many people call him the GOAT. That stands for Greatest Of All Time.",
+      "Tom grew up in California. He loved sports as a kid. He played football, baseball, and basketball growing up.",
+      "He went to the University of Michigan for college. He had to work hard to become the starting quarterback. He never gave up.",
+      "Tom played in the NFL for over 20 years. He retired as a legend. Kids and adults all over the world look up to him."
     ],
-    words: ["insects", "nectar", "liquid", "honey", "hive", "queen", "worker", "pollen"],
+    words: ["greatest", "GOAT", "California", "Michigan", "quarterback", "starting", "retired", "legend"],
     quiz: [
-      { q: "What do bees collect from flowers?", choices: ["Water", "Nectar", "Seeds"], answer: 1 },
-      { q: "Who is the leader of the hive?", choices: ["Worker bee", "King bee", "Queen bee"], answer: 2 },
-      { q: "How do bees help flowers?", choices: ["By watering them", "By carrying pollen", "By planting seeds"], answer: 1 }
+      { q: "What does GOAT stand for?", choices: ["Good Old Athletic Tiger", "Greatest Of All Time", "Great Outside And Tall"], answer: 1 },
+      { q: "Where did Tom grow up?", choices: ["Texas", "California", "Ohio"], answer: 1 },
+      { q: "What college did Tom go to?", choices: ["USC", "Iowa", "Michigan"], answer: 2 }
     ]
   },
   {
-    topic: "bugs",
-    title: "Cool Butterflies",
-    icon: "🦋",
+    topic: "tom-brady",
+    title: "Tom Brady's Seven Rings",
+    icon: "💍",
     content: [
-      "Butterflies start life as tiny eggs. A caterpillar hatches from the egg. The caterpillar eats leaves and grows bigger and bigger.",
-      "Then something amazing happens. The caterpillar makes a hard shell called a chrysalis. Inside, its body changes completely.",
-      "After a few weeks, a butterfly comes out! It has colorful wings. It must wait for its wings to dry before it can fly.",
-      "Butterflies drink nectar from flowers using a long tongue. It works like a straw! They can taste things with their feet."
+      "Tom Brady won seven Super Bowls. That is more than any other player ever! Six of those wins were with the New England Patriots.",
+      "His seventh ring came with the Tampa Bay Buccaneers. He was 43 years old! Most players retire much younger than that.",
+      "In many of those games, Tom made amazing comebacks. He never stopped believing his team could win. He stayed calm under pressure.",
+      "Seven Super Bowl rings is a record that may never be broken. Tom Brady showed that hard work and believing in yourself can do amazing things."
     ],
-    words: ["caterpillar", "hatches", "chrysalis", "changes", "wings", "colorful", "nectar", "tongue"],
+    words: ["Super Bowl", "rings", "Patriots", "Buccaneers", "comebacks", "believing", "calm", "record"],
     quiz: [
-      { q: "What hatches from a butterfly egg?", choices: ["A butterfly", "A caterpillar", "A moth"], answer: 1 },
-      { q: "What is the hard shell called?", choices: ["A cocoon", "A chrysalis", "A nest"], answer: 1 },
-      { q: "What can butterflies taste with?", choices: ["Their wings", "Their tongue", "Their feet"], answer: 2 }
+      { q: "How many Super Bowls did Tom win?", choices: ["Five", "Six", "Seven"], answer: 2 },
+      { q: "Which team did he win his 7th ring with?", choices: ["The Patriots", "The Buccaneers", "The Lions"], answer: 1 },
+      { q: "What was Tom known for?", choices: ["Giving up easily", "Making comebacks", "Being very fast"], answer: 1 }
+    ]
+  },
+  {
+    topic: "tom-brady",
+    title: "Tom Brady Was Pick 199",
+    icon: "📋",
+    content: [
+      "When Tom Brady entered the NFL draft, not many teams wanted him. He was picked 199th overall. That means 198 players were picked before him!",
+      "Tom was very sad and upset. But he used that feeling to work even harder. He wanted to prove everyone wrong.",
+      "And boy, did he prove them wrong! He became the best quarterback ever. The teams that passed on him wished they had picked him.",
+      "Tom's story teaches us a big lesson. It does not matter where you start. What matters is how hard you work and that you never give up."
+    ],
+    words: ["draft", "picked", "overall", "upset", "prove", "harder", "lesson", "never give up"],
+    quiz: [
+      { q: "What pick was Tom Brady in the draft?", choices: ["1st", "50th", "199th"], answer: 2 },
+      { q: "How did Tom feel after the draft?", choices: ["Happy", "Sad and upset", "Tired"], answer: 1 },
+      { q: "What did Tom do with his feelings?", choices: ["Quit football", "Worked even harder", "Went to sleep"], answer: 1 }
     ]
   },
 
-  // === TRUCKS & VEHICLES ===
+  // === LEGO STAR WARS ===
   {
-    topic: "trucks",
-    title: "Big Trucks",
-    icon: "🚚",
+    topic: "lego-star-wars",
+    title: "Building the Millennium Falcon",
+    icon: "🚀",
     content: [
-      "Trucks are some of the biggest vehicles on the road. They carry things from place to place. Without trucks, stores would have no food or toys!",
-      "A semi-truck has 18 wheels. That is a lot more than a car! The driver sits up high in a cab. Some cabs even have beds in them.",
-      "Dump trucks carry dirt, sand, and rocks. They can tip their bed up to dump everything out. They help build roads and buildings.",
-      "Fire trucks are special trucks. They carry water, hoses, and ladders. Firefighters ride on them to go put out fires and save people."
+      "The Millennium Falcon is the coolest ship in Star Wars. It belongs to Han Solo and Chewbacca. Now you can build it with Lego!",
+      "The Lego Falcon has hundreds of tiny pieces. You follow the instructions step by step. Each step adds more bricks to the ship.",
+      "It has a cockpit where the mini figures sit. It also has secret compartments inside. You can open it up and see the rooms!",
+      "When it is done, you can play with it. Fly it around your room. Make up your own Star Wars adventures with your Lego Falcon!"
     ],
-    words: ["vehicles", "semi-truck", "wheels", "cab", "dump", "tip", "hoses", "ladders"],
+    words: ["Millennium Falcon", "Han Solo", "Chewbacca", "cockpit", "mini figures", "compartments", "bricks", "adventures"],
     quiz: [
-      { q: "How many wheels does a semi-truck have?", choices: ["8", "12", "18"], answer: 2 },
-      { q: "What do dump trucks carry?", choices: ["People", "Dirt, sand, and rocks", "Animals"], answer: 1 },
-      { q: "What do fire trucks carry?", choices: ["Food", "Water and hoses", "Mail"], answer: 1 }
+      { q: "Who flies the Millennium Falcon?", choices: ["Luke", "Han Solo and Chewbacca", "Yoda"], answer: 1 },
+      { q: "What does the Lego set have inside?", choices: ["Real food", "Secret compartments", "A motor"], answer: 1 },
+      { q: "What do you follow to build it?", choices: ["A song", "Instructions", "A video game"], answer: 1 }
     ]
   },
-
-  // === VIDEO GAMES ===
   {
-    topic: "video games",
-    title: "How Video Games Work",
+    topic: "lego-star-wars",
+    title: "Lego Lightsaber Battles",
+    icon: "⚔️",
+    content: [
+      "Lightsabers are the coolest weapons in Star Wars. Jedi use blue and green ones. Bad guys use red ones. In Lego, they are tiny and awesome!",
+      "You can build battle scenes with Lego. Put a Jedi on one side and a Sith on the other. Then act out an epic lightsaber fight!",
+      "Luke Skywalker has a green lightsaber. Darth Vader has a red one. When they fight, it is one of the best scenes ever.",
+      "The best part about Lego is you make the story. Your Jedi can win every time. Or maybe the bad guy wins and you have to fight again!"
+    ],
+    words: ["lightsaber", "Jedi", "Sith", "battle", "Luke", "Darth Vader", "fight", "epic"],
+    quiz: [
+      { q: "What color lightsaber does a Jedi use?", choices: ["Red", "Blue or green", "Purple"], answer: 1 },
+      { q: "Who has a red lightsaber?", choices: ["Luke", "Yoda", "Darth Vader"], answer: 2 },
+      { q: "What is the best part about Lego?", choices: ["The box", "You make the story", "The stickers"], answer: 1 }
+    ]
+  },
+  {
+    topic: "lego-star-wars",
+    title: "Lego Star Wars Video Games",
     icon: "🎮",
     content: [
-      "Video games are made by teams of people. Some people draw the art. Others write the code that makes the game work.",
-      "A game starts as an idea. The team plans what the player will do. They decide on the characters, the world, and the rules.",
-      "Game designers make levels for you to play. Each level gets a little harder. This keeps the game fun and exciting.",
-      "You can play games on many devices. You can use a computer, a phone, or a game console. Some games let you play with friends online."
+      "There are Lego Star Wars video games too! In the games, everything is made of Lego bricks. Even the trees and buildings!",
+      "You can play as your favorite characters. Be Luke, Leia, or even Darth Vader! Each character has special moves they can do.",
+      "The games are really funny. When something gets destroyed, the Lego pieces go flying everywhere. The characters make silly faces and sounds.",
+      "You can play with a friend too. Work together to solve puzzles and beat the bad guys. Lego Star Wars games are fun for the whole family!"
     ],
-    words: ["teams", "code", "idea", "characters", "designers", "levels", "devices", "console"],
+    words: ["video games", "characters", "special", "destroyed", "pieces", "puzzles", "silly", "together"],
     quiz: [
-      { q: "Who makes video games?", choices: ["One person", "Teams of people", "Robots"], answer: 1 },
-      { q: "What happens with each level?", choices: ["It gets easier", "It stays the same", "It gets harder"], answer: 2 },
-      { q: "Where can you play games?", choices: ["Only on a computer", "Only on a phone", "Computer, phone, or console"], answer: 2 }
+      { q: "What is everything made of in the games?", choices: ["Clay", "Lego bricks", "Paper"], answer: 1 },
+      { q: "What happens when things get destroyed?", choices: ["The game ends", "Lego pieces fly everywhere", "Nothing"], answer: 1 },
+      { q: "How many players can play together?", choices: ["Only one", "Two", "Ten"], answer: 1 }
     ]
   },
 
-  // === WEATHER ===
+  // === FLAG FOOTBALL ===
   {
-    topic: "weather",
-    title: "Clouds and Rain",
-    icon: "🌧️",
+    topic: "flag-football",
+    title: "What Is Flag Football?",
+    icon: "🏳️",
     content: [
-      "Clouds are made of tiny drops of water. The drops are so small and light that they float in the air. There are many kinds of clouds.",
-      "When the water drops in a cloud get big and heavy, they fall down. This is rain! Rain gives water to plants, animals, and people.",
-      "Sometimes it gets very cold. Then the water drops freeze and become snow or hail. Snowflakes are tiny ice crystals. No two are the same!",
-      "After it rains, you might see a rainbow. Sunlight goes through the raindrops and splits into colors. A rainbow has seven beautiful colors."
+      "Flag football is a type of football. But there is no tackling! Instead of tackling, you pull a flag off the other player's belt.",
+      "Each player wears a belt with flags hanging from it. When someone pulls your flag, the play is over. It is much safer than tackle football.",
+      "You still throw, catch, and run with the ball. The goal is still to score touchdowns. It is all the fun of football without getting hit!",
+      "Kids all over the world play flag football. It is a great way to learn the game. Some grown-ups play flag football leagues too!"
     ],
-    words: ["clouds", "drops", "float", "rain", "freeze", "snowflakes", "crystals", "rainbow"],
+    words: ["flag", "tackling", "belt", "pull", "safer", "touchdowns", "leagues", "learn"],
     quiz: [
-      { q: "What are clouds made of?", choices: ["Cotton", "Tiny water drops", "Smoke"], answer: 1 },
-      { q: "What happens when water drops freeze?", choices: ["They become rain", "They become snow or hail", "They disappear"], answer: 1 },
-      { q: "How many colors are in a rainbow?", choices: ["Five", "Seven", "Ten"], answer: 1 }
+      { q: "How do you stop someone in flag football?", choices: ["Tackle them", "Pull their flag", "Tag them"], answer: 1 },
+      { q: "Is there tackling in flag football?", choices: ["Yes", "No", "Sometimes"], answer: 1 },
+      { q: "Who plays flag football?", choices: ["Only kids", "Only adults", "Kids and adults"], answer: 2 }
+    ]
+  },
+  {
+    topic: "flag-football",
+    title: "Flag Football in the Olympics",
+    icon: "🥇",
+    content: [
+      "Guess what? Flag football is going to be in the Olympics! The whole world will watch teams play flag football. How cool is that?",
+      "Teams from many countries will compete. The United States will have a team. So will countries from Europe, Asia, and more.",
+      "The Olympics brings people together through sports. Now football fans everywhere will get to cheer. Flag football on the world stage is exciting!",
+      "Maybe one day you could play flag football in the Olympics. Keep practicing your throws and catches. Dream big and work hard!"
+    ],
+    words: ["Olympics", "countries", "compete", "United States", "Europe", "Asia", "exciting", "dream"],
+    quiz: [
+      { q: "Where is flag football going to be played?", choices: ["The Super Bowl", "The Olympics", "The World Series"], answer: 1 },
+      { q: "How many countries will compete?", choices: ["Just one", "Two", "Many countries"], answer: 2 },
+      { q: "What should you do to get better?", choices: ["Stop playing", "Keep practicing", "Watch TV"], answer: 1 }
+    ]
+  },
+  {
+    topic: "flag-football",
+    title: "Playing Flag Football",
+    icon: "🏃",
+    content: [
+      "Playing flag football is a blast. You start by picking teams. Each team makes up plays to run. A play is a plan for what everyone does.",
+      "The quarterback calls the play in the huddle. Then the team lines up. The quarterback says hike and the play starts!",
+      "Receivers run their routes and try to get open. The quarterback throws the ball. If you catch it, run fast before someone pulls your flag!",
+      "The best part is everyone gets to play. You do not have to be the biggest or fastest. Smart plays and teamwork win flag football games."
+    ],
+    words: ["blast", "plays", "huddle", "hike", "routes", "open", "teamwork", "smart"],
+    quiz: [
+      { q: "What is a play?", choices: ["A game", "A plan for what everyone does", "A flag"], answer: 1 },
+      { q: "What does the quarterback say to start?", choices: ["Go", "Hike", "Now"], answer: 1 },
+      { q: "What wins flag football games?", choices: ["Being the biggest", "Smart plays and teamwork", "Being the tallest"], answer: 1 }
     ]
   },
 
-  // === COOKING / FOOD ===
+  // === HISTORY OF AMERICAN FOOTBALL ===
   {
-    topic: "food",
-    title: "Making Pizza",
-    icon: "🍕",
+    topic: "football-history",
+    title: "How Football Began",
+    icon: "📜",
     content: [
-      "Pizza is a favorite food for many kids. It starts with dough. Dough is made from flour, water, yeast, and a little salt.",
-      "You roll the dough flat and round. Then you spread tomato sauce on top. The sauce is made from cooked tomatoes.",
-      "Next comes the cheese! Most pizza uses mozzarella cheese. It gets melty and stretchy when it is baked. Yum!",
-      "You can add toppings you like. Pepperoni, mushrooms, or peppers are popular. Then the pizza goes in a hot oven until it is golden and bubbly."
+      "Football started a long time ago. In the 1800s, college students played a game like soccer and rugby mixed together. It was very rough!",
+      "A man named Walter Camp helped make the rules. He is called the Father of Football. He created the line of scrimmage and downs.",
+      "The first college football game was in 1869. Rutgers played Princeton. The game looked very different from what we see today!",
+      "Over the years, the rules changed to make the game safer and more fun. Helmets were added. The forward pass was invented. Football kept getting better!"
     ],
-    words: ["dough", "flour", "yeast", "sauce", "tomatoes", "mozzarella", "toppings", "oven"],
+    words: ["rugby", "Walter Camp", "rules", "scrimmage", "downs", "Rutgers", "helmets", "forward pass"],
     quiz: [
-      { q: "What is pizza dough made from?", choices: ["Sugar and butter", "Flour, water, and yeast", "Milk and eggs"], answer: 1 },
-      { q: "What kind of cheese is usually on pizza?", choices: ["Cheddar", "Swiss", "Mozzarella"], answer: 2 },
-      { q: "What happens to the cheese when baked?", choices: ["It turns blue", "It gets melty and stretchy", "It disappears"], answer: 1 }
+      { q: "Who is called the Father of Football?", choices: ["Tom Brady", "Walter Camp", "George Washington"], answer: 1 },
+      { q: "When was the first college football game?", choices: ["1769", "1869", "1969"], answer: 1 },
+      { q: "What was invented to make football more exciting?", choices: ["The forward pass", "The baseball bat", "The basketball hoop"], answer: 0 }
+    ]
+  },
+  {
+    topic: "football-history",
+    title: "The NFL Is Born",
+    icon: "🏈",
+    content: [
+      "The NFL started in 1920. NFL stands for the National Football League. At first, there were only a few teams.",
+      "The teams played in small towns. Not many people watched. But slowly, more and more fans started to love the game.",
+      "By the 1960s, football was on TV. Now millions of people could watch from home. The Super Bowl became the biggest game of the year.",
+      "Today the NFL has 32 teams. Fans fill huge stadiums every Sunday. Football is now the most popular sport in America!"
+    ],
+    words: ["NFL", "league", "teams", "towns", "fans", "TV", "stadiums", "popular"],
+    quiz: [
+      { q: "When did the NFL start?", choices: ["1920", "1950", "1990"], answer: 0 },
+      { q: "What does NFL stand for?", choices: ["New Football League", "National Football League", "Nice Fun League"], answer: 1 },
+      { q: "How many teams are in the NFL today?", choices: ["16", "24", "32"], answer: 2 }
+    ]
+  },
+  {
+    topic: "football-history",
+    title: "Football Helmets Through Time",
+    icon: "⛑️",
+    content: [
+      "A long time ago, football players had no helmets at all! They played with nothing on their heads. That was very dangerous.",
+      "Then players started wearing leather caps. These soft caps did not do much. But it was better than nothing!",
+      "In the 1940s, hard plastic helmets were made. They protected players much better. Face masks were added later to protect their faces.",
+      "Today's helmets are very advanced. They have padding inside and are made of strong materials. Scientists keep making them safer every year."
+    ],
+    words: ["helmets", "leather", "caps", "dangerous", "plastic", "protect", "face masks", "advanced"],
+    quiz: [
+      { q: "What did players first wear on their heads?", choices: ["Nothing", "Metal helmets", "Hats"], answer: 0 },
+      { q: "What were early helmets made of?", choices: ["Metal", "Leather", "Wood"], answer: 1 },
+      { q: "What is added to protect player faces?", choices: ["Glasses", "Face masks", "Bandanas"], answer: 1 }
     ]
   },
 
-  // === SCIENCE ===
+  // === EPIC AMERICAN FOOTBALL STORIES ===
   {
-    topic: "science",
-    title: "Magnets Are Magic",
-    icon: "🧲",
+    topic: "epic-football",
+    title: "The Immaculate Reception",
+    icon: "🤯",
     content: [
-      "Magnets can pull some metals toward them. This pull is called a magnetic force. It works even through paper, cloth, and water!",
-      "Every magnet has two ends called poles. One is the north pole. The other is the south pole. Opposite poles pull toward each other.",
-      "If you put two north poles together, they push away. Two south poles also push away. This push is called repelling.",
-      "The Earth is like a giant magnet! It has a north pole and a south pole. A compass uses Earth's magnetism to show you which way is north."
+      "In 1972, the Steelers were losing a playoff game. There were only seconds left. It looked like they would lose.",
+      "The quarterback threw a long pass. It bounced off a player! Franco Harris caught the ball just before it hit the ground.",
+      "Franco ran all the way to the end zone for a touchdown! The Steelers won the game! Nobody could believe what just happened.",
+      "People call this play the Immaculate Reception. It is one of the greatest plays in football history. It happened in the blink of an eye!"
     ],
-    words: ["magnets", "metals", "force", "poles", "north", "south", "repelling", "compass"],
+    words: ["Steelers", "playoff", "seconds", "bounced", "Franco Harris", "Immaculate Reception", "greatest", "history"],
     quiz: [
-      { q: "What do magnets pull toward them?", choices: ["Wood", "Some metals", "Plastic"], answer: 1 },
-      { q: "What happens with two north poles?", choices: ["They stick", "They push away", "Nothing"], answer: 1 },
-      { q: "What does a compass use?", choices: ["Wind", "Light", "Earth's magnetism"], answer: 2 }
+      { q: "What team made this famous play?", choices: ["The Cowboys", "The Steelers", "The Patriots"], answer: 1 },
+      { q: "What happened to the ball?", choices: ["It was kicked", "It bounced off a player", "It went out of bounds"], answer: 1 },
+      { q: "Who caught the ball?", choices: ["Tom Brady", "Franco Harris", "George Kittle"], answer: 1 }
     ]
   },
-
-  // === LEGO / BUILDING ===
   {
-    topic: "building",
-    title: "Building with Blocks",
-    icon: "🧱",
+    topic: "epic-football",
+    title: "The Biggest Comeback Ever",
+    icon: "🔥",
     content: [
-      "Building with blocks is a great way to create things. You can make houses, towers, castles, or anything you dream up!",
-      "Start with a strong base at the bottom. This holds everything up. Make it wider than the top so it does not fall over.",
-      "You can stack blocks high to make a tall tower. But be careful! If you stack too many, it might wobble and fall down.",
-      "The best part about building is using your imagination. There is no wrong way to build. You can always take it apart and try again."
+      "In Super Bowl 51, the Patriots were losing big. The Falcons were ahead 28 to 3. No team had ever come back from that far behind in a Super Bowl.",
+      "Tom Brady did not give up. He told his team to keep fighting. They scored again and again. The Falcons could not stop them!",
+      "The game went to overtime for the first time ever in Super Bowl history! The Patriots scored a touchdown to win 34 to 28.",
+      "It was the greatest comeback ever. Tom Brady was named the game's MVP. Fans still talk about this amazing game today."
     ],
-    words: ["create", "towers", "castles", "base", "wider", "stack", "wobble", "imagination"],
+    words: ["comeback", "Falcons", "Patriots", "overtime", "fighting", "scored", "MVP", "amazing"],
     quiz: [
-      { q: "What should you start with when building?", choices: ["The top", "A strong base", "The middle"], answer: 1 },
-      { q: "Why should the base be wider?", choices: ["It looks cool", "So it does not fall over", "To use more blocks"], answer: 1 },
-      { q: "What is the best part about building?", choices: ["Following rules", "Using your imagination", "Being fast"], answer: 1 }
+      { q: "What was the score the Patriots came back from?", choices: ["14 to 3", "21 to 7", "28 to 3"], answer: 2 },
+      { q: "What happened for the first time in Super Bowl history?", choices: ["Overtime", "A tie", "A shutout"], answer: 0 },
+      { q: "Who was named MVP?", choices: ["George Kittle", "Tom Brady", "Amon-Ra St. Brown"], answer: 1 }
     ]
   },
-
-  // === MUSIC ===
   {
-    topic: "music",
-    title: "Making Music",
-    icon: "🎵",
+    topic: "epic-football",
+    title: "The Music City Miracle",
+    icon: "🎶",
     content: [
-      "Music is sounds put together in a special way. It can be fast or slow, loud or soft. Music can make you feel happy or calm.",
-      "There are many ways to make music. You can sing, clap, or play an instrument. A drum, guitar, and piano are all instruments.",
-      "When you tap a steady beat, that is called rhythm. Rhythm is the heartbeat of music. Try clapping along to your favorite song!",
-      "Anyone can make music. You do not have to be perfect. Just have fun with it! Singing in the shower counts too."
+      "In the year 2000, the Titans played the Bills in a playoff game. The Bills kicked a field goal to take the lead with 16 seconds left.",
+      "It looked like the Bills would win. But then something wild happened on the kickoff return! A Titans player caught the ball and threw it across the field.",
+      "His teammate Kevin Dyson caught the lateral pass and ran down the sideline. Nobody could catch him! He scored a touchdown to win the game!",
+      "The play is called the Music City Miracle. It happened in Nashville, the Music City. Fans could not believe their eyes. It was pure magic!"
     ],
-    words: ["sounds", "instrument", "drum", "guitar", "piano", "rhythm", "beat", "singing"],
+    words: ["Titans", "Bills", "playoff", "kickoff", "lateral", "sideline", "miracle", "Nashville"],
     quiz: [
-      { q: "What is rhythm?", choices: ["A type of song", "A steady beat", "A loud sound"], answer: 1 },
-      { q: "Which of these is an instrument?", choices: ["A book", "A guitar", "A hat"], answer: 1 },
-      { q: "Who can make music?", choices: ["Only adults", "Only musicians", "Anyone"], answer: 2 }
+      { q: "What city did this miracle happen in?", choices: ["New York", "Nashville", "Dallas"], answer: 1 },
+      { q: "What kind of pass was thrown?", choices: ["A forward pass", "A lateral pass", "A bounce pass"], answer: 1 },
+      { q: "Who scored the winning touchdown?", choices: ["Kevin Dyson", "Tom Brady", "Franco Harris"], answer: 0 }
     ]
   }
 ];
 
 // Topic metadata for the topic selector
 const TOPICS = [
-  { id: "dinosaurs", label: "Dinosaurs", icon: "🦕", color: "#4CAF50" },
-  { id: "space", label: "Space", icon: "🚀", color: "#2196F3" },
-  { id: "animals", label: "Animals", icon: "🐾", color: "#FF9800" },
-  { id: "sports", label: "Sports", icon: "⚽", color: "#F44336" },
-  { id: "superheroes", label: "Superheroes", icon: "🦸", color: "#9C27B0" },
-  { id: "robots", label: "Robots", icon: "🤖", color: "#607D8B" },
-  { id: "bugs", label: "Bugs", icon: "🐛", color: "#8BC34A" },
-  { id: "trucks", label: "Trucks", icon: "🚚", color: "#795548" },
-  { id: "video games", label: "Video Games", icon: "🎮", color: "#E91E63" },
-  { id: "weather", label: "Weather", icon: "🌤️", color: "#00BCD4" },
-  { id: "food", label: "Food", icon: "🍕", color: "#FF5722" },
-  { id: "science", label: "Science", icon: "🔬", color: "#3F51B5" },
-  { id: "building", label: "Building", icon: "🧱", color: "#FFC107" },
-  { id: "music", label: "Music", icon: "🎵", color: "#673AB7" }
+  { id: "ohio-state", label: "Ohio State Football", icon: "🌰", color: "#BB0000" },
+  { id: "american-football", label: "American Football", icon: "🏈", color: "#4CAF50" },
+  { id: "amon-ra", label: "Amon-Ra St. Brown", icon: "🦁", color: "#0076B6" },
+  { id: "george-kittle", label: "George Kittle", icon: "🐻", color: "#AA0000" },
+  { id: "tom-brady", label: "Tom Brady", icon: "🐐", color: "#002244" },
+  { id: "lego-star-wars", label: "Lego Star Wars", icon: "🚀", color: "#FFD700" },
+  { id: "flag-football", label: "Flag Football", icon: "🏳️", color: "#FF9800" },
+  { id: "football-history", label: "History of Football", icon: "📜", color: "#795548" },
+  { id: "epic-football", label: "Epic Football Stories", icon: "🔥", color: "#F44336" }
 ];
