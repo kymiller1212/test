@@ -129,7 +129,17 @@
       console.error("Sign-in error:", err);
       const statusEl = document.getElementById("sync-status");
       if (statusEl) {
-        statusEl.innerHTML = '<span style="color:var(--red);font-size:13px;">Sign-in failed. Try again.</span>';
+        let msg = "Sign-in failed.";
+        if (err.code === "auth/unauthorized-domain") {
+          msg = "This domain isn't authorized in Firebase. Add it under Authentication > Settings > Authorized domains.";
+        } else if (err.code === "auth/popup-blocked") {
+          msg = "Pop-up was blocked. Allow pop-ups and try again.";
+        } else if (err.code === "auth/popup-closed-by-user") {
+          msg = "Sign-in window was closed.";
+        } else if (err.code) {
+          msg = `Error: ${err.code}`;
+        }
+        statusEl.innerHTML = `<span style="color:var(--red);font-size:13px;line-height:1.4;">${msg}</span>`;
       }
     });
   }
