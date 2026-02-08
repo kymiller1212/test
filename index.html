@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260208-1800">
+  <link rel="stylesheet" href="styles.css?v=20260208-1900">
 </head>
 <body>
   <!-- ===== SETTINGS PANEL (slide-out) ===== -->
@@ -278,13 +278,25 @@
     </div>
   </div>
 
-  <!-- Firebase SDK (loaded only if config has firebase settings) -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 
-  <script src="config.js?v=20260208-1800"></script>
-  <script src="stories.js?v=20260208-1800"></script>
-  <script src="app.js?v=20260208-1800"></script>
+  <!-- Firebase project config (public — Firebase API keys are safe to expose) -->
+  <script>
+    var READBUDDY_FIREBASE = {
+      apiKey: "AIzaSyD3mfNifnL8D8qYq2hR-aAuwRtHLB8JMBI",
+      authDomain: "readbuddy-700f9.firebaseapp.com",
+      projectId: "readbuddy-700f9",
+      storageBucket: "readbuddy-700f9.firebasestorage.app",
+      messagingSenderId: "64982657756",
+      appId: "1:64982657756:web:78080d31a3c7433066e219"
+    };
+  </script>
+
+  <script src="config.js?v=20260208-1900"></script>
+  <script src="stories.js?v=20260208-1900"></script>
+  <script src="app.js?v=20260208-1900"></script>
 </body>
 </html>

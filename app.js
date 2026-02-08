@@ -65,20 +65,27 @@
   let firebaseUser = null;
   let syncDebounceTimer = null;
 
+  function getFirebaseConfig() {
+    // Check config.js first, then the inline READBUDDY_FIREBASE from index.html
+    if (typeof READBUDDY_CONFIG !== "undefined" && READBUDDY_CONFIG.firebase && READBUDDY_CONFIG.firebase.apiKey) {
+      return READBUDDY_CONFIG.firebase;
+    }
+    if (typeof READBUDDY_FIREBASE !== "undefined" && READBUDDY_FIREBASE.apiKey) {
+      return READBUDDY_FIREBASE;
+    }
+    return null;
+  }
+
   function isFirebaseConfigured() {
-    return (
-      typeof READBUDDY_CONFIG !== "undefined" &&
-      READBUDDY_CONFIG.firebase &&
-      READBUDDY_CONFIG.firebase.apiKey &&
-      READBUDDY_CONFIG.firebase.projectId
-    );
+    return getFirebaseConfig() !== null;
   }
 
   function initFirebase() {
-    if (!isFirebaseConfigured()) return;
+    const fbConfig = getFirebaseConfig();
+    if (!fbConfig) return;
     try {
       if (!firebase.apps.length) {
-        firebase.initializeApp(READBUDDY_CONFIG.firebase);
+        firebase.initializeApp(fbConfig);
       }
       firebaseDB = firebase.firestore();
       firebaseAuth = firebase.auth();
