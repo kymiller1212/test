@@ -82,10 +82,43 @@
 
   let authResolved = false;
 
+  function isMobileDevice() {
+    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  }
+
+  function setupAuthListener() {
+    console.log("[Auth] Setting up onAuthStateChanged listener");
+    firebaseAuth.onAuthStateChanged((user) => {
+      console.log("[Auth] onAuthStateChanged fired:", user ? user.email : "null", "authResolved:", authResolved);
+      firebaseUser = user;
+      updateSyncUI();
+      if (!authResolved) {
+        authResolved = true;
+        if (user) {
+          console.log("[Auth] First auth event — user found, routing to handleAuthenticatedUser");
+          handleAuthenticatedUser(user);
+        } else {
+          console.log("[Auth] First auth event — no user, showing landing page");
+          showLandingPage();
+        }
+      } else {
+        // Subsequent auth changes (sign out, or new sign in)
+        if (user) {
+          console.log("[Auth] Subsequent auth event — user found");
+          handleAuthenticatedUser(user);
+        } else {
+          console.log("[Auth] Subsequent auth event — no user, showing landing page");
+          showLandingPage();
+        }
+      }
+    });
+  }
+
   function initFirebase() {
     const fbConfig = getFirebaseConfig();
     if (!fbConfig) {
       // No Firebase — show app directly (original behavior)
+      console.log("[Auth] No Firebase config, showing app directly");
       showAppView();
       return;
     }
@@ -96,25 +129,18 @@
       firebaseDB = firebase.firestore();
       firebaseAuth = firebase.auth();
 
-      // Listen for auth state — this fires immediately with cached session or null
-      firebaseAuth.onAuthStateChanged((user) => {
-        firebaseUser = user;
-        updateSyncUI();
-        if (!authResolved) {
-          authResolved = true;
-          if (user) {
-            handleAuthenticatedUser(user);
-          } else {
-            showLandingPage();
-          }
-        } else {
-          // Subsequent auth changes (sign out, or new sign in via popup)
-          if (user) {
-            handleAuthenticatedUser(user);
-          } else {
-            showLandingPage();
-          }
-        }
+      // On mobile, we use signInWithRedirect which reloads the page.
+      // We must call getRedirectResult() FIRST so the auth state is settled
+      // before onAuthStateChanged fires.
+      console.log("[Auth] Checking getRedirectResult...");
+      firebaseAuth.getRedirectResult().then((result) => {
+        console.log("[Auth] getRedirectResult resolved:", result && result.user ? result.user.email : "no redirect user");
+        // Auth state is now settled — safe to set up onAuthStateChanged
+        setupAuthListener();
+      }).catch((err) => {
+        console.error("[Auth] getRedirectResult error:", err.code, err.message);
+        // Still set up the auth listener
+        setupAuthListener();
       });
     } catch (e) {
       console.warn("Firebase init failed:", e);
@@ -123,9 +149,12 @@
   }
 
   function handleAuthenticatedUser(user) {
+    console.log("[Auth] handleAuthenticatedUser called for:", user.email);
     // Check if this is a new user who needs onboarding
     const onboarded = localStorage.getItem("rb_onboarded");
+    console.log("[Auth] localStorage rb_onboarded:", onboarded);
     if (onboarded === "true") {
+      console.log("[Auth] Already onboarded — loading cloud data and showing app");
       loadFromCloud();
       showAppView();
       return;
@@ -133,7 +162,9 @@
 
     // Check Firestore for existing data (could be new device)
     if (firebaseDB) {
+      console.log("[Auth] Checking Firestore for onboarding status...");
       firebaseDB.collection("users").doc(user.uid).get().then((doc) => {
+        console.log("[Auth] Firestore doc exists:", doc.exists, doc.exists ? doc.data() : "");
         if (doc.exists && doc.data().onboarded) {
           localStorage.setItem("rb_onboarded", "true");
           // Load user topics if stored
@@ -145,13 +176,16 @@
           showAppView();
         } else {
           // New user — show onboarding
+          console.log("[Auth] New user — showing onboarding");
           showOnboarding(user);
         }
-      }).catch(() => {
+      }).catch((err) => {
         // Firestore error — show onboarding as fallback
+        console.warn("[Auth] Firestore check failed:", err.code, err.message, "— showing onboarding anyway");
         showOnboarding(user);
       });
     } else {
+      console.log("[Auth] No Firestore — showing onboarding");
       showOnboarding(user);
     }
   }
@@ -175,34 +209,48 @@
     }
   }
 
+  function showAuthError(msg) {
+    let toast = document.getElementById("lp-auth-error");
+    if (!toast) {
+      toast = document.createElement("div");
+      toast.id = "lp-auth-error";
+      toast.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--red);color:white;padding:14px 24px;border-radius:12px;font-size:14px;font-weight:600;z-index:10000;max-width:90%;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,0.2);";
+      document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    setTimeout(() => { if (toast.parentNode) toast.remove(); }, 8000);
+  }
+
   function signInWithGoogle() {
     if (!firebaseAuth) return;
     const provider = new firebase.auth.GoogleAuthProvider();
-    firebaseAuth.signInWithPopup(provider).catch((err) => {
-      console.error("Sign-in error:", err);
-      // Show error on landing page if visible
-      const lpEl = document.getElementById("landing-page");
-      if (lpEl && lpEl.style.display !== "none") {
-        let msg = "Sign-in failed. Please try again.";
+
+    if (isMobileDevice()) {
+      // Mobile (iOS/Android): use redirect — popups are unreliable on mobile Safari
+      console.log("[Auth] Mobile detected — using signInWithRedirect");
+      firebaseAuth.signInWithRedirect(provider);
+    } else {
+      // Desktop: use popup — avoids page reload
+      console.log("[Auth] Desktop detected — using signInWithPopup");
+      firebaseAuth.signInWithPopup(provider).then((result) => {
+        console.log("[Auth] signInWithPopup success:", result.user?.email);
+      }).catch((err) => {
+        console.error("[Auth] signInWithPopup error:", err.code, err.message);
+        if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
+          return; // User closed or duplicate popup
+        }
+        let msg = "Sign-in failed (" + err.code + "). Please try again.";
         if (err.code === "auth/unauthorized-domain") {
           msg = "This domain isn't authorized yet. Add it in Firebase Console > Authentication > Settings > Authorized domains.";
         } else if (err.code === "auth/popup-blocked") {
-          msg = "Pop-up was blocked by your browser. Please allow pop-ups for this site and try again.";
-        } else if (err.code === "auth/popup-closed-by-user") {
-          return; // User closed it intentionally, no error needed
+          // Fallback to redirect if popup is blocked
+          console.log("[Auth] Popup blocked, falling back to redirect");
+          firebaseAuth.signInWithRedirect(provider);
+          return;
         }
-        // Create or update error toast on landing page
-        let toast = document.getElementById("lp-auth-error");
-        if (!toast) {
-          toast = document.createElement("div");
-          toast.id = "lp-auth-error";
-          toast.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--red);color:white;padding:14px 24px;border-radius:12px;font-size:14px;font-weight:600;z-index:10000;max-width:90%;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,0.2);";
-          document.body.appendChild(toast);
-        }
-        toast.textContent = msg;
-        setTimeout(() => { if (toast.parentNode) toast.remove(); }, 8000);
-      }
-    });
+        showAuthError(msg);
+      });
+    }
   }
 
   function signOutFirebase() {
@@ -351,6 +399,7 @@
   // --- View Management (Landing / App / Onboarding) ---
 
   function showLandingPage() {
+    console.log("[View] showLandingPage");
     document.getElementById("landing-page").style.display = "";
     document.getElementById("app").style.display = "none";
     document.getElementById("onboarding").style.display = "none";
@@ -359,6 +408,7 @@
   }
 
   function showAppView() {
+    console.log("[View] showAppView");
     document.getElementById("landing-page").style.display = "none";
     document.getElementById("app").style.display = "";
     document.getElementById("onboarding").style.display = "none";
@@ -369,6 +419,7 @@
   }
 
   function showOnboarding(user) {
+    console.log("[View] showOnboarding for:", user?.email);
     document.getElementById("landing-page").style.display = "none";
     document.getElementById("app").style.display = "none";
     document.getElementById("onboarding").style.display = "";
@@ -402,13 +453,9 @@
   }
 
   function setupLandingPage() {
-    // Attach click handlers to all CTA buttons
-    const navBtn = document.getElementById("lp-nav-cta");
-    if (navBtn) navBtn.addEventListener("click", signInWithGoogle);
-
-    document.querySelectorAll(".lp-cta-btn").forEach(btn => {
-      btn.addEventListener("click", signInWithGoogle);
-    });
+    // CTA click handlers are set dynamically by updateLandingCTAs()
+    // which is called by showLandingPage(). We don't add addEventListener here
+    // to avoid duplicate handlers (addEventListener + onclick = two calls).
   }
 
   // --- User Topics (persist custom topics across reloads) ---
