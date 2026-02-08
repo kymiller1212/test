@@ -96,51 +96,30 @@
       firebaseDB = firebase.firestore();
       firebaseAuth = firebase.auth();
 
-      // IMPORTANT: Process the redirect result FIRST, before setting up onAuthStateChanged.
-      // getRedirectResult resolves with the user if we're returning from a sign-in redirect.
-      // If we're NOT returning from a redirect, it resolves with null.
-      // Only AFTER this resolves do we set up the auth state listener.
-      firebaseAuth.getRedirectResult().then((result) => {
-        if (result && result.user) {
-          // We're back from a successful redirect sign-in
-          firebaseUser = result.user;
-          updateSyncUI();
-          handleAuthenticatedUser(result.user);
-          // Now set up ongoing listener for sign-outs
-          setupAuthListener();
-          return;
+      // Listen for auth state — this fires immediately with cached session or null
+      firebaseAuth.onAuthStateChanged((user) => {
+        firebaseUser = user;
+        updateSyncUI();
+        if (!authResolved) {
+          authResolved = true;
+          if (user) {
+            handleAuthenticatedUser(user);
+          } else {
+            showLandingPage();
+          }
+        } else {
+          // Subsequent auth changes (sign out, or new sign in via popup)
+          if (user) {
+            handleAuthenticatedUser(user);
+          } else {
+            showLandingPage();
+          }
         }
-        // Not a redirect return — set up normal auth listener
-        setupAuthListener();
-      }).catch((err) => {
-        console.warn("Redirect sign-in error:", err);
-        // Still set up the listener so the app isn't stuck
-        setupAuthListener();
       });
     } catch (e) {
       console.warn("Firebase init failed:", e);
       showAppView();
     }
-  }
-
-  function setupAuthListener() {
-    firebaseAuth.onAuthStateChanged((user) => {
-      firebaseUser = user;
-      updateSyncUI();
-      if (!authResolved) {
-        authResolved = true;
-        if (user) {
-          handleAuthenticatedUser(user);
-        } else {
-          showLandingPage();
-        }
-      } else {
-        // Subsequent auth changes (sign out)
-        if (!user) {
-          showLandingPage();
-        }
-      }
-    });
   }
 
   function handleAuthenticatedUser(user) {
@@ -199,8 +178,31 @@
   function signInWithGoogle() {
     if (!firebaseAuth) return;
     const provider = new firebase.auth.GoogleAuthProvider();
-    // Use redirect instead of popup — more reliable on mobile and avoids pop-up blockers
-    firebaseAuth.signInWithRedirect(provider);
+    firebaseAuth.signInWithPopup(provider).catch((err) => {
+      console.error("Sign-in error:", err);
+      // Show error on landing page if visible
+      const lpEl = document.getElementById("landing-page");
+      if (lpEl && lpEl.style.display !== "none") {
+        let msg = "Sign-in failed. Please try again.";
+        if (err.code === "auth/unauthorized-domain") {
+          msg = "This domain isn't authorized yet. Add it in Firebase Console > Authentication > Settings > Authorized domains.";
+        } else if (err.code === "auth/popup-blocked") {
+          msg = "Pop-up was blocked by your browser. Please allow pop-ups for this site and try again.";
+        } else if (err.code === "auth/popup-closed-by-user") {
+          return; // User closed it intentionally, no error needed
+        }
+        // Create or update error toast on landing page
+        let toast = document.getElementById("lp-auth-error");
+        if (!toast) {
+          toast = document.createElement("div");
+          toast.id = "lp-auth-error";
+          toast.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--red);color:white;padding:14px 24px;border-radius:12px;font-size:14px;font-weight:600;z-index:10000;max-width:90%;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,0.2);";
+          document.body.appendChild(toast);
+        }
+        toast.textContent = msg;
+        setTimeout(() => { if (toast.parentNode) toast.remove(); }, 8000);
+      }
+    });
   }
 
   function signOutFirebase() {
