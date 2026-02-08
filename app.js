@@ -59,6 +59,215 @@
     quiz: $("#screen-quiz"),
   };
 
+  // --- Firebase Cloud Sync ---
+  let firebaseDB = null;
+  let firebaseAuth = null;
+  let firebaseUser = null;
+  let syncDebounceTimer = null;
+
+  function isFirebaseConfigured() {
+    return (
+      typeof READBUDDY_CONFIG !== "undefined" &&
+      READBUDDY_CONFIG.firebase &&
+      READBUDDY_CONFIG.firebase.apiKey &&
+      READBUDDY_CONFIG.firebase.projectId
+    );
+  }
+
+  function initFirebase() {
+    if (!isFirebaseConfigured()) return;
+    try {
+      if (!firebase.apps.length) {
+        firebase.initializeApp(READBUDDY_CONFIG.firebase);
+      }
+      firebaseDB = firebase.firestore();
+      firebaseAuth = firebase.auth();
+
+      // Listen for auth state changes
+      firebaseAuth.onAuthStateChanged((user) => {
+        firebaseUser = user;
+        updateSyncUI();
+        if (user) {
+          loadFromCloud();
+        }
+      });
+    } catch (e) {
+      console.warn("Firebase init failed:", e);
+    }
+  }
+
+  function updateSyncUI() {
+    const statusEl = document.getElementById("sync-status");
+    const btnEl = document.getElementById("sync-auth-btn");
+    if (!statusEl || !btnEl) return;
+
+    if (firebaseUser) {
+      const name = firebaseUser.displayName || firebaseUser.email || "Signed In";
+      statusEl.innerHTML = `<span class="sync-user-name">${name}</span>`;
+      btnEl.textContent = "Sign Out";
+      btnEl.className = "sync-btn sync-btn-out";
+      btnEl.onclick = signOutFirebase;
+    } else {
+      statusEl.innerHTML = '<span class="sync-user-name">Not signed in</span>';
+      btnEl.textContent = "Sign in with Google";
+      btnEl.className = "sync-btn sync-btn-in";
+      btnEl.onclick = signInWithGoogle;
+    }
+  }
+
+  function signInWithGoogle() {
+    if (!firebaseAuth) return;
+    const provider = new firebase.auth.GoogleAuthProvider();
+    firebaseAuth.signInWithPopup(provider).catch((err) => {
+      console.error("Sign-in error:", err);
+      const statusEl = document.getElementById("sync-status");
+      if (statusEl) {
+        statusEl.innerHTML = '<span style="color:var(--red);font-size:13px;">Sign-in failed. Try again.</span>';
+      }
+    });
+  }
+
+  function signOutFirebase() {
+    if (!firebaseAuth) return;
+    firebaseAuth.signOut();
+  }
+
+  function saveToCloud() {
+    if (!firebaseDB || !firebaseUser) return;
+
+    // Debounce saves to avoid excessive writes
+    clearTimeout(syncDebounceTimer);
+    syncDebounceTimer = setTimeout(() => {
+      const data = {
+        xp: state.xp,
+        level: state.level,
+        totalXPEarned: state.totalXPEarned,
+        storiesRead: state.storiesRead,
+        streak: state.streak,
+        generatedStories: state.generatedStories,
+        settings: {
+          fontSize: state.settings.fontSize,
+          letterSpacing: state.settings.letterSpacing,
+          wordSpacing: state.settings.wordSpacing,
+          lineHeight: state.settings.lineHeight,
+          speed: state.settings.speed,
+          bgColor: state.settings.bgColor,
+          rulerEnabled: state.settings.rulerEnabled,
+          syllableMode: state.settings.syllableMode
+        },
+        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      firebaseDB
+        .collection("users")
+        .doc(firebaseUser.uid)
+        .set(data, { merge: true })
+        .catch((err) => console.warn("Cloud save failed:", err));
+    }, 1500);
+  }
+
+  function loadFromCloud() {
+    if (!firebaseDB || !firebaseUser) return;
+
+    firebaseDB
+      .collection("users")
+      .doc(firebaseUser.uid)
+      .get()
+      .then((doc) => {
+        if (!doc.exists) {
+          // First sign-in: push local data to cloud
+          saveToCloud();
+          return;
+        }
+        const cloud = doc.data();
+
+        // Merge strategy: take whichever has more progress
+        const cloudXPTotal = cloud.totalXPEarned || 0;
+        const localXPTotal = state.totalXPEarned || 0;
+
+        if (cloudXPTotal >= localXPTotal) {
+          // Cloud has more progress — load it
+          state.xp = cloud.xp ?? state.xp;
+          state.level = cloud.level ?? state.level;
+          state.totalXPEarned = cloud.totalXPEarned ?? state.totalXPEarned;
+          localStorage.setItem("rb_xp", state.xp);
+          localStorage.setItem("rb_level", state.level);
+          localStorage.setItem("rb_total_xp", state.totalXPEarned);
+        }
+
+        // Merge stories read (union of both)
+        if (cloud.storiesRead && Array.isArray(cloud.storiesRead)) {
+          const merged = [...new Set([...state.storiesRead, ...cloud.storiesRead])];
+          state.storiesRead = merged;
+          localStorage.setItem("rb_read", JSON.stringify(merged));
+        }
+
+        // Merge streak: take the one with higher best
+        if (cloud.streak) {
+          if ((cloud.streak.best || 0) > (state.streak.best || 0)) {
+            state.streak.best = cloud.streak.best;
+          }
+          if ((cloud.streak.current || 0) > (state.streak.current || 0)) {
+            state.streak.current = cloud.streak.current;
+            state.streak.lastDate = cloud.streak.lastDate;
+          }
+          // Merge history (union)
+          if (cloud.streak.history) {
+            const mergedHistory = [...new Set([...(state.streak.history || []), ...cloud.streak.history])];
+            mergedHistory.sort();
+            state.streak.history = mergedHistory.slice(-30);
+          }
+          localStorage.setItem("rb_streak", JSON.stringify(state.streak));
+        }
+
+        // Merge generated stories (union)
+        if (cloud.generatedStories) {
+          Object.keys(cloud.generatedStories).forEach((key) => {
+            if (!state.generatedStories[key]) {
+              state.generatedStories[key] = cloud.generatedStories[key];
+            }
+          });
+          localStorage.setItem("rb_generated", JSON.stringify(state.generatedStories));
+        }
+
+        // Load settings from cloud only if cloud has more progress
+        if (cloud.settings && cloudXPTotal >= localXPTotal) {
+          Object.assign(state.settings, cloud.settings);
+          localStorage.setItem("rb_settings", JSON.stringify(state.settings));
+          applySettings();
+        }
+
+        // Refresh UI
+        updateXPDisplay();
+        buildTopicGrid();
+
+        // Push the merged state back to cloud
+        saveToCloud();
+      })
+      .catch((err) => console.warn("Cloud load failed:", err));
+  }
+
+  function addSyncSettingsUI() {
+    if (!isFirebaseConfigured()) return;
+
+    const settingsBody = $(".settings-body");
+    const divider = document.createElement("div");
+    divider.style.cssText = "border-top:2px solid var(--border);padding-top:20px;margin-top:4px;";
+    divider.innerHTML = `
+      <div style="font-size:13px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:16px;">
+        ☁️ Cloud Sync
+      </div>
+      <div class="sync-section">
+        <div id="sync-status" class="sync-status">
+          <span class="sync-user-name">Checking...</span>
+        </div>
+        <button id="sync-auth-btn" class="sync-btn sync-btn-in">Sign in with Google</button>
+        <span class="sync-hint">Sign in to save your progress across devices.</span>
+      </div>
+    `;
+    settingsBody.appendChild(divider);
+  }
+
   // --- Init ---
   function init() {
     // Always pick up API key from config.js if present and settings don't have one
@@ -80,7 +289,9 @@
     applySettings();
     updateXPDisplay();
     addAPISettingsUI();
+    addSyncSettingsUI();
     setupModeSelector();
+    initFirebase();
   }
 
   // --- Streak Tracking ---
@@ -105,6 +316,7 @@
       if (s.history.length > 30) s.history.shift();
     }
     localStorage.setItem("rb_streak", JSON.stringify(s));
+    saveToCloud();
   }
 
   // --- XP & Gamification ---
@@ -124,6 +336,7 @@
     localStorage.setItem("rb_level", state.level);
     updateXPDisplay();
     showXPPopup(amount);
+    saveToCloud();
   }
 
   function updateXPDisplay() {
@@ -753,6 +966,7 @@
 
       state.generatedStories[storyKey] = story;
       localStorage.setItem("rb_generated", JSON.stringify(state.generatedStories));
+      saveToCloud();
 
       loadingOverlay.remove();
 
@@ -941,6 +1155,7 @@ Respond with ONLY this JSON:
         state.generatedStories[storyKey] = story;
       });
       localStorage.setItem("rb_generated", JSON.stringify(state.generatedStories));
+      saveToCloud();
 
       // Small delay to show 100% progress
       await new Promise(r => setTimeout(r, 500));
@@ -1436,6 +1651,7 @@ Respond with ONLY this JSON structure:
     if (!state.storiesRead.includes(storyId)) {
       state.storiesRead.push(storyId);
       localStorage.setItem("rb_read", JSON.stringify(state.storiesRead));
+      saveToCloud();
       addXP(10);
       buildTopicGrid(); // refresh badges
     }
@@ -1553,6 +1769,7 @@ Respond with ONLY this JSON structure:
         state.xp = Math.max(0, state.xp - 1);
         localStorage.setItem("rb_xp", state.xp);
         updateXPDisplay();
+        saveToCloud();
       }
       markWordBankTapped(cleanWord);
     }
@@ -2425,6 +2642,7 @@ Respond with ONLY this JSON structure:
 
   function saveSettings() {
     localStorage.setItem("rb_settings", JSON.stringify(state.settings));
+    saveToCloud();
   }
 
   // --- Fuzzy Pronunciation Matching ---

@@ -40,11 +40,18 @@ Built for a 3rd grader reading at a 2nd grade level, but adaptable to any young 
 - **Speech recognition** — say a topic on the home screen to search, or read words aloud in Word by Word and Line by Line modes
 - **Fuzzy pronunciation matching** — tolerant of reading mistakes, partial matches, and common dyslexia-related pronunciation differences
 
+### Cloud Sync (Optional)
+- **Google sign-in** — sign in with your Google account to sync progress across devices
+- **Cross-device state** — XP, level, streak, stories read, generated stories, and settings all sync automatically
+- **Smart merge** — intelligently merges data when signing in on a new device (union of stories read, highest progress wins)
+- **Offline-first** — works fully offline with localStorage; syncs when signed in and online
+
 ## Getting Started
 
 ### Prerequisites
 - A modern web browser (Chrome, Safari, Edge, or Firefox)
 - An OpenAI API key (for story generation only — all built-in stories work without one)
+- A Firebase project (optional — for cross-device sync only)
 
 ### Setup
 
@@ -70,6 +77,31 @@ Built for a 3rd grader reading at a 2nd grade level, but adaptable to any young 
 4. Open `index.html` in your browser. No build step or server required — it's a pure client-side app.
 
 > **Note:** `config.js` is gitignored and will not be committed. The app works fully without an API key — you just won't be able to generate new stories.
+
+### Cloud Sync Setup (Optional)
+
+To enable cross-device progress sync:
+
+1. Go to [Firebase Console](https://console.firebase.google.com) and create a new project
+2. In the Firebase console, go to **Authentication > Sign-in method** and enable **Google**
+3. Go to **Cloud Firestore** and create a database (start in **test mode** for simplicity)
+4. Go to **Project Settings > General** and scroll to "Your apps" — click the web icon (`</>`) to register a web app
+5. Copy the config values into your `config.js`:
+   ```js
+   var READBUDDY_CONFIG = {
+     apiKey: "your-openai-api-key",
+     apiProvider: "openai",
+     firebase: {
+       apiKey: "AIza...",
+       authDomain: "your-project.firebaseapp.com",
+       projectId: "your-project",
+       storageBucket: "your-project.appspot.com",
+       messagingSenderId: "123456789",
+       appId: "1:123456789:web:abc123"
+     }
+   };
+   ```
+6. A "Cloud Sync" section will appear in Settings — tap "Sign in with Google" to start syncing
 
 ## Project Structure
 
@@ -136,12 +168,13 @@ Add entries to the `TOPICS` array in `stories.js`:
 - **Pure HTML/CSS/JavaScript** — no frameworks, no build tools, no dependencies
 - **Web Speech API** — text-to-speech and speech recognition
 - **OpenAI API** — story generation (optional)
+- **Firebase** — Google sign-in + Cloud Firestore for cross-device sync (optional)
 - **localStorage** — persists XP, level, streak, stories read, generated stories, and settings
 - **Google Fonts** — Lexend (optimized for reading)
 
 ## Data Persistence
 
-All user data is stored in the browser's localStorage:
+All user data is stored in the browser's localStorage (and optionally synced to Firebase Cloud Firestore):
 
 | Key | Description |
 |-----|-------------|
@@ -152,6 +185,12 @@ All user data is stored in the browser's localStorage:
 | `rb_streak` | Streak data (current, best, last date, 30-day history) |
 | `rb_generated` | AI-generated stories keyed by topic |
 | `rb_settings` | User preferences (font size, colors, etc.) |
+
+When signed in with Google, all data syncs to Firestore under `users/{uid}`. The merge strategy is:
+- **XP/Level**: Whichever device has more total XP earned wins
+- **Stories Read**: Union of both devices (no stories lost)
+- **Generated Stories**: Union of both devices
+- **Streak**: Highest best streak kept; history merged
 
 ## License
 
