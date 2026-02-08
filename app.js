@@ -33,6 +33,8 @@
       apiProvider: (typeof READBUDDY_CONFIG !== "undefined" && READBUDDY_CONFIG.apiProvider) || "openai"
     },
     generatedStories: JSON.parse(localStorage.getItem("rb_generated") || "{}"),
+    streak: JSON.parse(localStorage.getItem("rb_streak") || '{"current":0,"best":0,"lastDate":null,"history":[]}'),
+    totalXPEarned: parseInt(localStorage.getItem("rb_total_xp") || "0"),
     readingMode: "normal",
     practiceRecognition: null,
     practiceListening: false,
@@ -59,6 +61,7 @@
 
   // --- Init ---
   function init() {
+    updateStreak();
     buildTopicGrid();
     setupNavigation();
     setupSettings();
@@ -70,9 +73,37 @@
     setupModeSelector();
   }
 
+  // --- Streak Tracking ---
+  function updateStreak() {
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const s = state.streak;
+    if (s.lastDate === today) return; // Already logged today
+
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    if (s.lastDate === yesterday) {
+      s.current++;
+    } else if (s.lastDate) {
+      s.current = 1; // streak broken
+    } else {
+      s.current = 1; // first ever visit
+    }
+    s.lastDate = today;
+    if (s.current > s.best) s.best = s.current;
+    // Keep last 30 days in history
+    if (!s.history.includes(today)) {
+      s.history.push(today);
+      if (s.history.length > 30) s.history.shift();
+    }
+    localStorage.setItem("rb_streak", JSON.stringify(s));
+  }
+
   // --- XP & Gamification ---
   function addXP(amount) {
     state.xp += amount;
+    if (amount > 0) {
+      state.totalXPEarned += amount;
+      localStorage.setItem("rb_total_xp", state.totalXPEarned);
+    }
     const xpForNext = state.level * 50;
     if (state.xp >= xpForNext) {
       state.xp -= xpForNext;
@@ -91,6 +122,8 @@
     if (!statusEl) {
       statusEl = document.createElement("div");
       statusEl.className = "header-status";
+      statusEl.style.cursor = "pointer";
+      statusEl.addEventListener("click", openStatsScreen);
       $(".top-actions").prepend(statusEl);
     }
 
@@ -147,6 +180,198 @@
       container.appendChild(piece);
     }
     setTimeout(() => container.remove(), 4000);
+  }
+
+  // --- Stats/Progress Screen ---
+  function openStatsScreen() {
+    const overlay = document.getElementById("stats-overlay");
+    const body = document.getElementById("stats-body");
+    if (!overlay || !body) return;
+
+    body.innerHTML = buildStatsContent();
+    overlay.classList.add("open");
+    document.body.style.overflow = "hidden";
+
+    document.getElementById("stats-close").addEventListener("click", closeStatsScreen);
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) closeStatsScreen();
+    });
+
+    // Animate the streak calendar dots after render
+    setTimeout(() => {
+      body.querySelectorAll(".streak-day").forEach((el, i) => {
+        el.style.animationDelay = `${i * 0.02}s`;
+      });
+    }, 100);
+  }
+
+  function closeStatsScreen() {
+    const overlay = document.getElementById("stats-overlay");
+    if (!overlay) return;
+    overlay.classList.remove("open");
+    document.body.style.overflow = "";
+  }
+
+  function buildStatsContent() {
+    const xpForNext = state.level * 50;
+    const xpPct = Math.min(100, Math.round((state.xp / xpForNext) * 100));
+    const totalStories = STORIES.length;
+    const genStoriesCount = Object.values(state.generatedStories).reduce((sum, arr) => sum + arr.length, 0);
+    const readCount = state.storiesRead.length;
+    const streak = state.streak;
+
+    // Per-topic stats
+    const topicStats = TOPICS.map(t => {
+      const topicStories = STORIES.filter(s => s.topic === t.id);
+      const genStories = state.generatedStories[t.id] || [];
+      const total = topicStories.length + genStories.length;
+      const read = state.storiesRead.filter(id => id.startsWith(t.id + ":")).length;
+      return { ...t, total, read, pct: total > 0 ? Math.round((read / total) * 100) : 0 };
+    });
+
+    // Achievements
+    const achievements = getAchievements(readCount, streak, state.totalXPEarned, state.level);
+
+    // Build streak calendar (last 7 days)
+    const calendarHTML = buildStreakCalendar(streak);
+
+    // Level progress ring (SVG)
+    const circumference = 2 * Math.PI * 54;
+    const dashOffset = circumference - (xpPct / 100) * circumference;
+
+    return `
+      <!-- Level Progress Hero -->
+      <div class="stats-hero">
+        <div class="stats-level-ring">
+          <svg width="130" height="130" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="54" fill="none" stroke="#E5E5E5" stroke-width="8"/>
+            <circle cx="60" cy="60" r="54" fill="none" stroke="var(--orange)" stroke-width="8"
+              stroke-linecap="round" stroke-dasharray="${circumference}" stroke-dashoffset="${dashOffset}"
+              transform="rotate(-90 60 60)" class="stats-ring-progress"/>
+          </svg>
+          <div class="stats-level-number">
+            <span class="stats-level-val">${state.level}</span>
+            <span class="stats-level-label">LEVEL</span>
+          </div>
+        </div>
+        <div class="stats-xp-info">
+          <div class="stats-xp-current">${state.xp} / ${xpForNext} XP</div>
+          <div class="stats-xp-sublabel">to Level ${state.level + 1}</div>
+        </div>
+      </div>
+
+      <!-- Streak Section -->
+      <div class="stats-card stats-streak-card">
+        <div class="stats-streak-top">
+          <div class="stats-streak-flame">
+            <span class="streak-fire">${streak.current > 0 ? "🔥" : "❄️"}</span>
+            <div class="stats-streak-num">${streak.current}</div>
+            <div class="stats-streak-label">Day Streak</div>
+          </div>
+          <div class="stats-streak-best">
+            <span class="streak-best-icon">🏆</span>
+            <div class="stats-streak-best-num">${streak.best}</div>
+            <div class="stats-streak-best-label">Best</div>
+          </div>
+        </div>
+        ${calendarHTML}
+      </div>
+
+      <!-- Quick Stats Grid -->
+      <div class="stats-grid">
+        <div class="stats-stat-card">
+          <div class="stats-stat-icon">📚</div>
+          <div class="stats-stat-val">${readCount}</div>
+          <div class="stats-stat-label">Stories Read</div>
+        </div>
+        <div class="stats-stat-card">
+          <div class="stats-stat-icon">⚡</div>
+          <div class="stats-stat-val">${state.totalXPEarned}</div>
+          <div class="stats-stat-label">Total XP</div>
+        </div>
+        <div class="stats-stat-card">
+          <div class="stats-stat-icon">📖</div>
+          <div class="stats-stat-val">${totalStories + genStoriesCount}</div>
+          <div class="stats-stat-label">Available</div>
+        </div>
+        <div class="stats-stat-card">
+          <div class="stats-stat-icon">✨</div>
+          <div class="stats-stat-val">${genStoriesCount}</div>
+          <div class="stats-stat-label">Generated</div>
+        </div>
+      </div>
+
+      <!-- Achievements -->
+      <div class="stats-section-title">Achievements</div>
+      <div class="stats-achievements">
+        ${achievements.map(a => `
+          <div class="stats-achievement ${a.earned ? "earned" : "locked"}">
+            <div class="stats-ach-icon">${a.icon}</div>
+            <div class="stats-ach-info">
+              <div class="stats-ach-name">${a.name}</div>
+              <div class="stats-ach-desc">${a.desc}</div>
+            </div>
+            ${a.earned ? '<div class="stats-ach-check">✓</div>' : '<div class="stats-ach-lock">🔒</div>'}
+          </div>
+        `).join("")}
+      </div>
+
+      <!-- Topic Progress -->
+      <div class="stats-section-title">Topic Progress</div>
+      <div class="stats-topics">
+        ${topicStats.map(t => `
+          <div class="stats-topic-row">
+            <span class="stats-topic-icon">${t.icon}</span>
+            <div class="stats-topic-info">
+              <div class="stats-topic-name">${t.label}</div>
+              <div class="stats-topic-bar">
+                <div class="stats-topic-fill" style="width:${t.pct}%; background:${t.color};"></div>
+              </div>
+            </div>
+            <span class="stats-topic-count">${t.read}/${t.total}</span>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  function getAchievements(readCount, streak, totalXP, level) {
+    return [
+      { icon: "📖", name: "First Story", desc: "Read your first story", earned: readCount >= 1 },
+      { icon: "📚", name: "Bookworm", desc: "Read 5 stories", earned: readCount >= 5 },
+      { icon: "🏆", name: "Story Master", desc: "Read 20 stories", earned: readCount >= 20 },
+      { icon: "🔥", name: "On Fire", desc: "3-day reading streak", earned: streak.best >= 3 },
+      { icon: "🌋", name: "Unstoppable", desc: "7-day reading streak", earned: streak.best >= 7 },
+      { icon: "⚡", name: "XP Hunter", desc: "Earn 100 total XP", earned: totalXP >= 100 },
+      { icon: "💎", name: "XP Champion", desc: "Earn 500 total XP", earned: totalXP >= 500 },
+      { icon: "🌟", name: "Level 5", desc: "Reach level 5", earned: level >= 5 },
+      { icon: "👑", name: "Level 10", desc: "Reach level 10", earned: level >= 10 },
+      { icon: "🎯", name: "Halfway There", desc: "Read half of all stories", earned: readCount >= Math.ceil(STORIES.length / 2) },
+    ];
+  }
+
+  function buildStreakCalendar(streak) {
+    const days = ["S", "M", "T", "W", "T", "F", "S"];
+    const today = new Date();
+    let html = '<div class="streak-calendar">';
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().slice(0, 10);
+      const isActive = streak.history.includes(dateStr);
+      const isToday = i === 0;
+      const dayName = days[d.getDay()];
+      html += `
+        <div class="streak-day ${isActive ? "active" : ""} ${isToday ? "today" : ""}">
+          <div class="streak-day-label">${dayName}</div>
+          <div class="streak-day-dot">${isActive ? "🔥" : ""}</div>
+        </div>
+      `;
+    }
+
+    html += "</div>";
+    return html;
   }
 
   // --- Topic Grid ---
