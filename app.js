@@ -87,64 +87,29 @@
   }
 
   function setupAuthListener() {
-    console.log("[Auth] Setting up onAuthStateChanged listener");
+    // Auth listener runs silently in the background — no view routing.
+    // If user is signed in, load their cloud data. If not, do nothing.
     firebaseAuth.onAuthStateChanged((user) => {
-      console.log("[Auth] onAuthStateChanged fired:", user ? user.email : "null", "authResolved:", authResolved);
       firebaseUser = user;
       updateSyncUI();
-      if (!authResolved) {
-        authResolved = true;
-        if (user) {
-          console.log("[Auth] First auth event — user found, routing to handleAuthenticatedUser");
-          handleAuthenticatedUser(user);
-        } else {
-          console.log("[Auth] First auth event — no user, showing landing page");
-          showLandingPage();
-        }
-      } else {
-        // Subsequent auth changes (sign out, or new sign in)
-        if (user) {
-          console.log("[Auth] Subsequent auth event — user found");
-          handleAuthenticatedUser(user);
-        } else {
-          console.log("[Auth] Subsequent auth event — no user, showing landing page");
-          showLandingPage();
-        }
+      if (user) {
+        loadFromCloud();
       }
     });
   }
 
   function initFirebase() {
     const fbConfig = getFirebaseConfig();
-    if (!fbConfig) {
-      // No Firebase — show app directly (original behavior)
-      console.log("[Auth] No Firebase config, showing app directly");
-      showAppView();
-      return;
-    }
+    if (!fbConfig) return;
     try {
       if (!firebase.apps.length) {
         firebase.initializeApp(fbConfig);
       }
       firebaseDB = firebase.firestore();
       firebaseAuth = firebase.auth();
-
-      // On mobile, we use signInWithRedirect which reloads the page.
-      // We must call getRedirectResult() FIRST so the auth state is settled
-      // before onAuthStateChanged fires.
-      console.log("[Auth] Checking getRedirectResult...");
-      firebaseAuth.getRedirectResult().then((result) => {
-        console.log("[Auth] getRedirectResult resolved:", result && result.user ? result.user.email : "no redirect user");
-        // Auth state is now settled — safe to set up onAuthStateChanged
-        setupAuthListener();
-      }).catch((err) => {
-        console.error("[Auth] getRedirectResult error:", err.code, err.message);
-        // Still set up the auth listener
-        setupAuthListener();
-      });
+      setupAuthListener();
     } catch (e) {
       console.warn("Firebase init failed:", e);
-      showAppView();
     }
   }
 
@@ -255,9 +220,7 @@
 
   function signOutFirebase() {
     if (!firebaseAuth) return;
-    firebaseAuth.signOut().then(() => {
-      showLandingPage();
-    });
+    firebaseAuth.signOut();
   }
 
   function saveToCloud() {
@@ -875,8 +838,6 @@ Generate 6 fun, specific reading topics based on these interests.`;
     addAPISettingsUI();
     addSyncSettingsUI();
     setupModeSelector();
-    setupLandingPage();
-    setupLogoNavigation();
     initFirebase();
   }
 
