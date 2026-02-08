@@ -207,6 +207,7 @@
       showScreen("stories");
     });
     $("#quiz-done-btn").addEventListener("click", () => {
+      resetWordReview();
       showScreen("stories");
     });
 
@@ -1018,9 +1019,324 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
       <div class="result-xp">+${xpEarned} XP</div>
     `;
     result.classList.remove("hidden");
-    $("#quiz-done-btn").classList.remove("hidden");
 
     addXP(xpEarned);
+
+    // If there are tapped words, launch word review after a short delay
+    if (state.tappedWords.size > 0) {
+      setTimeout(() => startWordReview(), 1200);
+    } else {
+      $("#quiz-done-btn").classList.remove("hidden");
+    }
+  }
+
+  // --- Word Review Flashcard Game ---
+  function startWordReview() {
+    const reviewWords = Array.from(state.tappedWords);
+    // Shuffle the words
+    for (let i = reviewWords.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [reviewWords[i], reviewWords[j]] = [reviewWords[j], reviewWords[i]];
+    }
+
+    state.wordReview = {
+      words: reviewWords,
+      index: 0,
+      gotIt: [],
+      missed: [],
+      tappedThisCard: false
+    };
+
+    // Hide quiz body and result, show word review
+    $("#quiz-body").classList.add("hidden");
+    $("#quiz-result").classList.add("hidden");
+    const wr = $("#word-review");
+    wr.classList.remove("hidden");
+    $("#word-review-results").classList.add("hidden");
+
+    // Setup counter
+    $("#wr-total").textContent = reviewWords.length;
+    updateWordReviewProgress();
+
+    // Setup card
+    showWordReviewCard();
+
+    // Setup button listeners (remove old ones by cloning)
+    setupWordReviewButtons();
+  }
+
+  function setupWordReviewButtons() {
+    const gotBtn = $("#wr-got-btn");
+    const missBtn = $("#wr-miss-btn");
+    const speakBtn = $("#wr-card-speak");
+    const card = $("#wr-card");
+
+    // Replace to remove old listeners
+    const newGot = gotBtn.cloneNode(true);
+    const newMiss = missBtn.cloneNode(true);
+    const newSpeak = speakBtn.cloneNode(true);
+    gotBtn.parentNode.replaceChild(newGot, gotBtn);
+    missBtn.parentNode.replaceChild(newMiss, missBtn);
+    speakBtn.parentNode.replaceChild(newSpeak, speakBtn);
+
+    newGot.addEventListener("click", () => handleWordReviewAnswer("got"));
+    newMiss.addEventListener("click", () => handleWordReviewAnswer("miss"));
+    newSpeak.addEventListener("click", () => {
+      const review = state.wordReview;
+      if (!review || review.index >= review.words.length) return;
+      const word = review.words[review.index];
+
+      // Auto-miss on tap (word was read aloud = needed help)
+      if (!review.tappedThisCard) {
+        review.tappedThisCard = true;
+        // Show syllable breakdown too
+        const syllables = $("#wr-card-syllables");
+        syllables.textContent = syllabify(word);
+        syllables.classList.remove("hidden");
+      }
+      speakText(word);
+    });
+
+    // Swipe gesture on card
+    setupCardSwipe(card);
+  }
+
+  function setupCardSwipe(card) {
+    let startX = 0, startY = 0, currentX = 0, isDragging = false;
+
+    const onStart = (x, y) => {
+      startX = x;
+      startY = y;
+      currentX = 0;
+      isDragging = true;
+      card.style.transition = "none";
+    };
+
+    const onMove = (x) => {
+      if (!isDragging) return;
+      currentX = x - startX;
+      const rotate = currentX * 0.08;
+      card.style.transform = `translateX(${currentX}px) rotate(${rotate}deg)`;
+
+      // Show stamp overlays based on direction
+      const stampGot = $("#wr-stamp-got");
+      const stampMiss = $("#wr-stamp-miss");
+      const threshold = 40;
+      if (currentX > threshold) {
+        stampGot.style.opacity = Math.min((currentX - threshold) / 80, 1);
+        stampMiss.style.opacity = 0;
+      } else if (currentX < -threshold) {
+        stampMiss.style.opacity = Math.min((-currentX - threshold) / 80, 1);
+        stampGot.style.opacity = 0;
+      } else {
+        stampGot.style.opacity = 0;
+        stampMiss.style.opacity = 0;
+      }
+    };
+
+    const onEnd = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      const swipeThreshold = 80;
+
+      if (currentX > swipeThreshold) {
+        handleWordReviewAnswer("got");
+      } else if (currentX < -swipeThreshold) {
+        handleWordReviewAnswer("miss");
+      } else {
+        // Snap back
+        card.style.transition = "transform 0.3s cubic-bezier(0.2, 0, 0, 1)";
+        card.style.transform = "";
+        $("#wr-stamp-got").style.opacity = 0;
+        $("#wr-stamp-miss").style.opacity = 0;
+      }
+    };
+
+    card.addEventListener("touchstart", (e) => {
+      const t = e.touches[0];
+      onStart(t.clientX, t.clientY);
+    }, { passive: true });
+    card.addEventListener("touchmove", (e) => {
+      onMove(e.touches[0].clientX);
+    }, { passive: true });
+    card.addEventListener("touchend", onEnd);
+
+    card.addEventListener("mousedown", (e) => {
+      onStart(e.clientX, e.clientY);
+      const mousemove = (ev) => onMove(ev.clientX);
+      const mouseup = () => {
+        onEnd();
+        window.removeEventListener("mousemove", mousemove);
+        window.removeEventListener("mouseup", mouseup);
+      };
+      window.addEventListener("mousemove", mousemove);
+      window.addEventListener("mouseup", mouseup);
+    });
+  }
+
+  function showWordReviewCard() {
+    const review = state.wordReview;
+    const card = $("#wr-card");
+    const wordEl = $("#wr-card-word");
+    const syllEl = $("#wr-card-syllables");
+
+    if (review.index >= review.words.length) {
+      finishWordReview();
+      return;
+    }
+
+    review.tappedThisCard = false;
+
+    const word = review.words[review.index];
+    wordEl.textContent = word;
+    syllEl.classList.add("hidden");
+    syllEl.textContent = "";
+
+    // Reset card position with entrance animation
+    card.style.transition = "none";
+    card.style.transform = "scale(0.8) translateY(30px)";
+    card.style.opacity = "0";
+    $("#wr-stamp-got").style.opacity = 0;
+    $("#wr-stamp-miss").style.opacity = 0;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        card.style.transition = "transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease";
+        card.style.transform = "";
+        card.style.opacity = "1";
+      });
+    });
+
+    updateWordReviewProgress();
+  }
+
+  function handleWordReviewAnswer(type) {
+    const review = state.wordReview;
+    if (!review || review.index >= review.words.length) return;
+
+    const card = $("#wr-card");
+    const word = review.words[review.index];
+
+    // If tapped (heard/syllable shown), force miss
+    const actualType = review.tappedThisCard ? "miss" : type;
+
+    if (actualType === "got") {
+      review.gotIt.push(word);
+    } else {
+      review.missed.push(word);
+    }
+
+    // Animate card exit
+    const direction = actualType === "got" ? 1 : -1;
+    const stampEl = actualType === "got" ? "#wr-stamp-got" : "#wr-stamp-miss";
+    $(stampEl).style.opacity = 1;
+
+    card.style.transition = "transform 0.4s cubic-bezier(0.5, 0, 0.7, 0.2), opacity 0.3s ease";
+    card.style.transform = `translateX(${direction * 350}px) rotate(${direction * 25}deg)`;
+    card.style.opacity = "0";
+
+    // Flash button for feedback
+    const feedbackBtn = actualType === "got" ? $(".wr-btn-got") : $(".wr-btn-miss");
+    feedbackBtn.classList.add("wr-btn-flash");
+    setTimeout(() => feedbackBtn.classList.remove("wr-btn-flash"), 400);
+
+    setTimeout(() => {
+      review.index++;
+      showWordReviewCard();
+    }, 400);
+  }
+
+  function updateWordReviewProgress() {
+    const review = state.wordReview;
+    const total = review.words.length;
+    const done = review.index;
+    const pct = total > 0 ? (done / total) * 100 : 0;
+
+    $("#wr-current").textContent = Math.min(done + 1, total);
+    $(".wr-progress-fill").style.width = pct + "%";
+  }
+
+  function finishWordReview() {
+    const review = state.wordReview;
+    const gotCount = review.gotIt.length;
+    const missCount = review.missed.length;
+    const total = review.words.length;
+    const pct = total > 0 ? gotCount / total : 0;
+
+    // Fill progress to 100%
+    $(".wr-progress-fill").style.width = "100%";
+
+    // Award XP for words they got
+    const xpEarned = gotCount * 3;
+    if (xpEarned > 0) addXP(xpEarned);
+
+    // Build results
+    let icon, message, cls;
+    if (pct === 1) {
+      icon = "🌟";
+      message = "You know all the words!";
+      cls = "great";
+      launchConfetti();
+    } else if (pct >= 0.5) {
+      icon = "💪";
+      message = `You got ${gotCount} out of ${total} words!`;
+      cls = "good";
+    } else {
+      icon = "📖";
+      message = `Keep practicing! You got ${gotCount} out of ${total}.`;
+      cls = "try-again";
+    }
+
+    const resultsEl = $("#word-review-results");
+    let html = `
+      <div class="wr-results-card ${cls}">
+        <div class="wr-results-icon">${icon}</div>
+        <div class="wr-results-message">${message}</div>
+        <div class="wr-results-xp">+${xpEarned} XP</div>
+        <div class="wr-results-breakdown">`;
+
+    if (gotCount > 0) {
+      html += `<div class="wr-results-section wr-results-got">
+        <div class="wr-results-label">Got It</div>
+        <div class="wr-results-words">${review.gotIt.map(w => `<span class="wr-word-chip wr-got">${w}</span>`).join("")}</div>
+      </div>`;
+    }
+    if (missCount > 0) {
+      html += `<div class="wr-results-section wr-results-missed">
+        <div class="wr-results-label">Keep Practicing</div>
+        <div class="wr-results-words">${review.missed.map(w => `<span class="wr-word-chip wr-missed">${w}</span>`).join("")}</div>
+      </div>`;
+    }
+
+    html += `</div></div>`;
+    resultsEl.innerHTML = html;
+    resultsEl.classList.remove("hidden");
+
+    // Hide card area, show done button
+    $(".wr-card-area").style.display = "none";
+    $(".wr-actions").style.display = "none";
+    $(".wr-header .wr-subtitle").textContent = "Review Complete!";
+    $("#quiz-done-btn").classList.remove("hidden");
+  }
+
+  function resetWordReview() {
+    state.wordReview = null;
+    const wr = $("#word-review");
+    if (wr) {
+      wr.classList.add("hidden");
+      // Reset display properties that might have been set to 'none'
+      const cardArea = wr.querySelector(".wr-card-area");
+      const actions = wr.querySelector(".wr-actions");
+      if (cardArea) cardArea.style.display = "";
+      if (actions) actions.style.display = "";
+    }
+    const wrResults = $("#word-review-results");
+    if (wrResults) {
+      wrResults.classList.add("hidden");
+      wrResults.innerHTML = "";
+    }
+    // Re-show quiz body for next quiz
+    $("#quiz-body").classList.remove("hidden");
   }
 
   // --- Reading Ruler ---

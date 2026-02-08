@@ -1816,6 +1816,300 @@ body {
   box-shadow: 0 1px 0 var(--purple-dark);
 }
 
+/* --- Word Review Flashcard Game --- */
+.word-review {
+  margin-top: 32px;
+  padding-bottom: 20px;
+}
+
+.wr-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.wr-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 4px;
+}
+
+.wr-subtitle {
+  font-size: 14px;
+  color: var(--text-light);
+  margin-bottom: 14px;
+}
+
+.wr-progress-bar {
+  width: 100%;
+  max-width: 260px;
+  height: 10px;
+  background: var(--border);
+  border-radius: 5px;
+  margin: 0 auto 8px;
+  overflow: hidden;
+}
+
+.wr-progress-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 5px;
+  width: 0%;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wr-counter {
+  font-size: 13px;
+  color: var(--text-light);
+  font-weight: 500;
+}
+
+/* Card area */
+.wr-card-area {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  margin-bottom: 20px;
+  perspective: 1000px;
+}
+
+.wr-card {
+  position: relative;
+  width: 280px;
+  min-height: 180px;
+  background: var(--bg-card);
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  cursor: grab;
+  user-select: none;
+  touch-action: pan-y;
+  will-change: transform;
+}
+
+.wr-card:active {
+  cursor: grabbing;
+}
+
+.wr-card-word {
+  font-family: "Lexend", sans-serif;
+  font-size: 38px;
+  font-weight: 600;
+  color: var(--text-dark);
+  letter-spacing: 0.04em;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.wr-card-syllables {
+  font-size: 18px;
+  color: var(--blue);
+  font-weight: 500;
+  margin-top: 10px;
+  letter-spacing: 0.1em;
+}
+
+.wr-card-speak {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--blue-light);
+  color: var(--blue-dark);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.wr-card-speak:active {
+  transform: scale(0.9);
+  background: var(--blue);
+  color: white;
+}
+
+/* Stamp overlays */
+.wr-stamp {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 8px 18px;
+  border-radius: 12px;
+  border: 4px solid;
+  opacity: 0;
+  z-index: 10;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.wr-stamp-got {
+  right: 10px;
+  color: var(--green-dark);
+  border-color: var(--green);
+  background: var(--green-light);
+}
+
+.wr-stamp-miss {
+  left: 10px;
+  color: var(--red-dark);
+  border-color: var(--red);
+  background: #FFE0E0;
+}
+
+/* Action buttons */
+.wr-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 0 20px;
+}
+
+.wr-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  border-radius: 50px;
+  border: 3px solid;
+  font-family: "Lexend", sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  touch-action: manipulation;
+}
+
+.wr-btn:active {
+  transform: scale(0.95);
+}
+
+.wr-btn-miss {
+  background: white;
+  color: var(--red-dark);
+  border-color: var(--red);
+  box-shadow: 0 4px 0 var(--red-dark);
+}
+
+.wr-btn-miss:active {
+  box-shadow: 0 1px 0 var(--red-dark);
+  transform: translateY(3px) scale(0.98);
+}
+
+.wr-btn-got {
+  background: var(--green);
+  color: white;
+  border-color: var(--green-dark);
+  box-shadow: 0 4px 0 var(--green-dark);
+}
+
+.wr-btn-got:active {
+  box-shadow: 0 1px 0 var(--green-dark);
+  transform: translateY(3px) scale(0.98);
+}
+
+.wr-btn-flash {
+  animation: wr-button-flash 0.4s ease;
+}
+
+@keyframes wr-button-flash {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+/* Results */
+.word-review-results {
+  margin-top: 8px;
+}
+
+.wr-results-card {
+  text-align: center;
+  padding: 24px 20px;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px var(--shadow);
+  animation: wr-results-enter 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes wr-results-enter {
+  0% { opacity: 0; transform: scale(0.85) translateY(20px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.wr-results-icon {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+
+.wr-results-message {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: 6px;
+}
+
+.wr-results-xp {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--green-dark);
+  margin-bottom: 16px;
+}
+
+.wr-results-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+
+.wr-results-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+.wr-results-got .wr-results-label { color: var(--green-dark); }
+.wr-results-missed .wr-results-label { color: var(--red-dark); }
+
+.wr-results-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wr-word-chip {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: "Lexend", sans-serif;
+}
+
+.wr-word-chip.wr-got {
+  background: var(--green-light);
+  color: var(--green-dark);
+}
+
+.wr-word-chip.wr-missed {
+  background: #FFE0E0;
+  color: var(--red-dark);
+}
+
 /* --- Print hidden --- */
 @media print {
   .top-bar, .reader-controls, .voice-input-area, .settings-panel, .settings-overlay, .reading-ruler {
