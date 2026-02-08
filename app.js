@@ -153,12 +153,14 @@
   function buildTopicGrid() {
     const grid = $("#topic-grid");
     grid.innerHTML = "";
-    TOPICS.forEach((topic) => {
+    TOPICS.forEach((topic, idx) => {
       const card = document.createElement("div");
       card.className = "topic-card";
       card.setAttribute("role", "button");
       card.setAttribute("tabindex", "0");
       card.setAttribute("aria-label", topic.label);
+      card.style.setProperty("--card-color", topic.color || "var(--blue)");
+      card.style.animationDelay = `${idx * 0.06}s`;
 
       const readCount = state.storiesRead.filter(
         (id) => id.startsWith(topic.id + ":")
@@ -169,10 +171,14 @@
       const generatedForTopic = Object.keys(state.generatedStories).filter(
         (k) => k.startsWith(topic.id + ":")
       ).length;
+      const totalStories = totalForTopic + generatedForTopic;
 
       card.innerHTML = `
-        <span class="topic-icon">${topic.icon}</span>
+        <div class="topic-icon-wrap">
+          <span class="topic-icon">${topic.icon}</span>
+        </div>
         <span class="topic-label">${topic.label}</span>
+        <span class="topic-stories-count">${totalStories} ${totalStories === 1 ? "story" : "stories"}</span>
         ${readCount > 0 ? `<span class="topic-badge">${readCount}</span>` : ""}
       `;
 
@@ -185,6 +191,15 @@
       });
       grid.appendChild(card);
     });
+
+    // Set hero greeting based on time of day
+    const hour = new Date().getHours();
+    const greetEl = $("#hero-greeting");
+    if (greetEl) {
+      if (hour < 12) greetEl.textContent = "Good Morning!";
+      else if (hour < 17) greetEl.textContent = "Good Afternoon!";
+      else greetEl.textContent = "Good Evening!";
+    }
   }
 
   // --- Navigation ---

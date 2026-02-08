@@ -237,20 +237,36 @@ body {
 }
 
 /* --- Topic Picker Screen --- */
+/* --- Hero Section --- */
+.hero-section {
+  text-align: center;
+  padding: 8px 0 4px;
+}
+
+.hero-greeting {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--green);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+
 .main-title {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 26px;
+  font-weight: 800;
   color: var(--text-dark);
   text-align: center;
   margin-bottom: 6px;
-  line-height: 1.3;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
 }
 
 .subtitle {
   text-align: center;
   color: var(--text-light);
-  font-size: 17px;
-  margin-bottom: 28px;
+  font-size: 15px;
+  margin-bottom: 20px;
   font-weight: 400;
 }
 
@@ -259,41 +275,41 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 32px;
+  gap: 10px;
+  margin-bottom: 28px;
 }
 
-.input-row {
+.search-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
   width: 100%;
   max-width: 440px;
-}
-
-.text-input-wrapper {
-  flex: 1;
-  display: flex;
-  align-items: center;
   background: var(--bg-card);
   border: 2px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 50px;
   overflow: hidden;
-  box-shadow: 0 3px 0 var(--border);
-  transition: border-color 0.2s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.text-input-wrapper:focus-within {
+.search-bar:focus-within {
   border-color: var(--blue);
-  box-shadow: 0 3px 0 var(--blue-dark);
+  box-shadow: 0 2px 12px rgba(28, 176, 246, 0.15);
+}
+
+.search-bar-icon {
+  margin-left: 16px;
+  flex-shrink: 0;
+  color: var(--text-light);
 }
 
 .topic-input {
   flex: 1;
   border: none;
   outline: none;
-  padding: 14px 16px;
+  padding: 13px 12px;
   font-family: inherit;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 500;
   color: var(--text);
   background: transparent;
@@ -310,51 +326,71 @@ body {
   background: var(--green);
   color: white;
   font-family: inherit;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: var(--transition);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   flex-shrink: 0;
+  margin-right: 4px;
+  border-radius: 50px;
+  touch-action: manipulation;
 }
 
 .topic-go-btn:hover {
   background: var(--green-dark);
 }
 
-.voice-btn-circle {
-  width: 56px;
-  height: 56px;
-  min-width: 56px;
-  border-radius: 50%;
+.topic-go-btn:active {
+  transform: scale(0.95);
+}
+
+.voice-btn-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 440px;
+  height: 50px;
+  border-radius: 50px;
   border: none;
   background: var(--blue);
   color: white;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   transition: var(--transition);
   box-shadow: 0 4px 0 var(--blue-dark);
-  flex-shrink: 0;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  touch-action: manipulation;
 }
 
-.voice-btn-circle:hover {
+.voice-btn-pill:hover {
   background: var(--blue-dark);
   transform: translateY(-1px);
   box-shadow: 0 5px 0 #0f7ab5;
 }
 
-.voice-btn-circle:active {
+.voice-btn-pill:active {
   transform: translateY(3px);
   box-shadow: 0 1px 0 var(--blue-dark);
 }
 
-.voice-btn-circle.listening {
+.voice-btn-pill.listening {
   background: var(--red);
   box-shadow: 0 4px 0 var(--red-dark);
   animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+.voice-btn-pill.listening .voice-btn-label {
+  display: none;
+}
+
+.voice-btn-pill.listening::after {
+  content: "Listening...";
+  font-weight: 600;
 }
 
 @keyframes pulse-glow {
@@ -363,10 +399,9 @@ body {
 }
 
 .voice-status {
-  margin-top: 12px;
-  font-size: 16px;
+  font-size: 15px;
   color: var(--text-light);
-  min-height: 24px;
+  min-height: 20px;
   text-align: center;
   font-weight: 500;
 }
@@ -376,68 +411,133 @@ body {
   font-weight: 600;
 }
 
+/* --- Topics Divider --- */
+.topics-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.topics-divider::before,
+.topics-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.topics-divider-text {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-light);
+  white-space: nowrap;
+}
+
 /* --- Topic Grid --- */
 .topic-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
 .topic-card {
   background: var(--bg-card);
   border: 2px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px 12px;
+  border-radius: 20px;
+  padding: 20px 14px 16px;
   text-align: center;
   cursor: pointer;
-  transition: var(--transition);
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease, border-color 0.2s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   position: relative;
   box-shadow: 0 4px 0 var(--border);
   user-select: none;
+  border-bottom-color: var(--card-color, var(--border));
+  border-bottom-width: 3px;
+  animation: topicCardEnter 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards;
+}
+
+@keyframes topicCardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .topic-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 0 var(--border);
-  border-color: var(--blue);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+  border-color: var(--card-color, var(--blue));
 }
 
 .topic-card:active {
-  transform: translateY(3px);
+  transform: translateY(2px) scale(0.98);
   box-shadow: 0 1px 0 var(--border);
 }
 
+.topic-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: #f0f0f0;
+  background: color-mix(in srgb, var(--card-color, var(--blue)) 10%, white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
 .topic-card .topic-icon {
-  font-size: 40px;
+  font-size: 32px;
   line-height: 1;
 }
 
 .topic-card .topic-label {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--text-dark);
+  line-height: 1.2;
+}
+
+.topic-card .topic-stories-count {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-light);
 }
 
 .topic-card .topic-badge {
   position: absolute;
-  top: -8px;
-  right: -8px;
+  top: -6px;
+  right: -6px;
   background: var(--gold);
   color: #5a4800;
   font-size: 11px;
   font-weight: 700;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
-  border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  border: 2.5px solid var(--bg);
+  animation: badgePop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards;
+  animation-delay: 0.5s;
+}
+
+@keyframes badgePop {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
 }
 
 /* --- Story List Screen --- */
@@ -1295,17 +1395,8 @@ body {
 
 /* --- Responsive --- */
 @media (max-width: 520px) {
-  .topic-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-  }
-
   .main-title {
     font-size: 22px;
-  }
-
-  .subtitle {
-    font-size: 15px;
   }
 
   .reader-body .paragraph {
@@ -1319,32 +1410,6 @@ body {
 
   .top-bar {
     padding: 12px 0;
-  }
-
-  .input-row {
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .voice-btn-circle {
-    width: 100%;
-    border-radius: var(--radius);
-    height: 52px;
-    gap: 10px;
-  }
-
-  .voice-btn-circle::after {
-    content: " Tap to Talk";
-    font-weight: 600;
-    font-size: 16px;
-  }
-
-  .voice-btn-circle.listening::after {
-    content: " Listening...";
-  }
-
-  .text-input-wrapper {
-    width: 100%;
   }
 
   .header-status {

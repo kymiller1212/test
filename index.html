@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260208-2235">
+  <link rel="stylesheet" href="styles.css?v=20260208-2300">
 </head>
 <body>
   <!-- ===== SETTINGS PANEL (slide-out) ===== -->
@@ -88,26 +88,33 @@
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
         </button>
       </div>
-      <div class="build-stamp">Last push: Feb 8, 2026 — 10:35 PM</div>
+      <div class="build-stamp">Last push: Feb 8, 2026 — 11:00 PM</div>
     </header>
 
     <!-- ===== SCREEN: TOPIC PICKER ===== -->
     <main id="screen-topics" class="screen active">
       <div class="screen-content">
-        <h1 class="main-title">What do you want to read about?</h1>
-        <p class="subtitle">Pick a topic or tell me what you like!</p>
+        <div class="hero-section">
+          <div class="hero-greeting" id="hero-greeting">Let's Read!</div>
+          <h1 class="main-title">What do you want to<br>read about?</h1>
+          <p class="subtitle">Pick a topic or tell me what you like!</p>
+        </div>
 
         <div class="voice-input-area">
-          <div class="input-row">
-            <div class="text-input-wrapper">
-              <input type="text" id="topic-input" class="topic-input" placeholder="Type a topic..." aria-label="Type a topic">
-              <button id="topic-go-btn" class="topic-go-btn" aria-label="Go">Go</button>
-            </div>
-            <button id="voice-btn" class="voice-btn voice-btn-circle" aria-label="Say what you want to read about">
-              <svg class="mic-icon" width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
-            </button>
+          <div class="search-bar">
+            <svg class="search-bar-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="topic-input" class="topic-input" placeholder="Type a topic..." aria-label="Type a topic">
+            <button id="topic-go-btn" class="topic-go-btn" aria-label="Go">GO</button>
           </div>
+          <button id="voice-btn" class="voice-btn voice-btn-pill" aria-label="Say what you want to read about">
+            <svg class="mic-icon" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+            <span class="voice-btn-label">Tap to Talk</span>
+          </button>
           <p id="voice-status" class="voice-status"></p>
+        </div>
+
+        <div class="topics-divider">
+          <span class="topics-divider-text">Popular Topics</span>
         </div>
 
         <div class="topic-grid" id="topic-grid">
@@ -258,8 +265,8 @@
 
   </div>
 
-  <script src="config.js?v=20260208-2235"></script>
-  <script src="stories.js?v=20260208-2235"></script>
-  <script src="app.js?v=20260208-2235"></script>
+  <script src="config.js?v=20260208-2300"></script>
+  <script src="stories.js?v=20260208-2300"></script>
+  <script src="app.js?v=20260208-2300"></script>
 </body>
 </html>
