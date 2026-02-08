@@ -1527,6 +1527,232 @@ body {
   transition: width 0.5s ease;
 }
 
+@keyframes gen-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* --- Generate Story Prompt Modal --- */
+.gen-prompt-overlay {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+
+@media (min-height: 500px) {
+  .gen-prompt-overlay {
+    align-items: center;
+    padding: 20px;
+  }
+}
+
+.gen-prompt-card {
+  background: var(--bg-card);
+  border-radius: 24px 24px 0 0;
+  width: 100%;
+  max-width: 420px;
+  padding: 0;
+  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.15);
+  animation: gen-prompt-slide 0.35s cubic-bezier(0.2, 0, 0, 1);
+  overflow: hidden;
+}
+
+@media (min-height: 500px) {
+  .gen-prompt-card {
+    border-radius: 24px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+    animation: gen-prompt-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+}
+
+@keyframes gen-prompt-slide {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes gen-prompt-pop {
+  from { transform: scale(0.9) translateY(20px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.gen-prompt-header {
+  text-align: center;
+  padding: 24px 24px 16px;
+  background: linear-gradient(135deg, #f5f0ff 0%, #ede4ff 100%);
+  border-bottom: 1px solid var(--border);
+}
+
+.gen-prompt-icon {
+  font-size: 36px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.gen-prompt-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.gen-prompt-subtitle {
+  font-size: 14px;
+  color: var(--text-light);
+  margin-top: 2px;
+}
+
+.gen-prompt-body {
+  padding: 20px 24px;
+}
+
+.gen-prompt-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-dark);
+  margin-bottom: 8px;
+}
+
+.gen-prompt-label-level {
+  margin-top: 18px;
+}
+
+.gen-prompt-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+.gen-prompt-input:focus {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px rgba(206, 130, 255, 0.15);
+}
+
+.gen-prompt-input::placeholder {
+  color: var(--text-light);
+  font-weight: 400;
+}
+
+.gen-prompt-hint {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 6px;
+  padding-left: 4px;
+}
+
+/* Level picker */
+.gen-level-picker {
+  display: flex;
+  gap: 10px;
+}
+
+.gen-level-btn {
+  flex: 1;
+  padding: 12px 10px;
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-card);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  box-shadow: 0 2px 0 var(--border);
+  touch-action: manipulation;
+}
+
+.gen-level-btn:active {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+.gen-level-btn.active {
+  border-color: var(--purple);
+  background: #f5f0ff;
+  box-shadow: 0 2px 0 var(--purple-dark);
+}
+
+.gen-level-num {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.gen-level-btn.active .gen-level-num {
+  color: var(--purple-dark);
+}
+
+.gen-level-grade {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-light);
+  margin-top: 2px;
+}
+
+/* Actions */
+.gen-prompt-actions {
+  display: flex;
+  gap: 10px;
+  padding: 16px 24px 24px;
+  border-top: 1px solid var(--border);
+}
+
+.gen-prompt-cancel {
+  flex: 1;
+  padding: 13px 16px;
+  border: 2px solid var(--border);
+  border-radius: 50px;
+  background: var(--bg-card);
+  color: var(--text-light);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 3px 0 var(--border);
+  touch-action: manipulation;
+}
+
+.gen-prompt-cancel:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--border);
+}
+
+.gen-prompt-go {
+  flex: 1.5;
+  padding: 13px 20px;
+  border: none;
+  border-radius: 50px;
+  background: var(--purple);
+  color: white;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  box-shadow: 0 3px 0 var(--purple-dark);
+  touch-action: manipulation;
+}
+
+.gen-prompt-go:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--purple-dark);
+}
+
 /* --- Responsive --- */
 @media (max-width: 520px) {
   .main-title {

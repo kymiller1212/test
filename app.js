@@ -297,7 +297,7 @@
         <div class="story-preview">Create a brand new story about ${topicLabel}</div>
       </div>
     `;
-    genBtn.addEventListener("click", () => generateStory(topicId, topicLabel));
+    genBtn.addEventListener("click", () => showGeneratePrompt(topicId, topicLabel, stories));
     list.appendChild(genBtn);
 
     // Separate stories by level (generated stories with a level go into that level)
@@ -408,6 +408,252 @@
   }
 
   // --- Story Generation ---
+
+  // Prompt modal for generating a single story within an existing topic
+  function showGeneratePrompt(topicId, topicLabel, existingStories) {
+    if (!hasAPIKey()) {
+      showAPIKeyPrompt();
+      return;
+    }
+
+    const existingTitles = existingStories.map(s => s.title).join(", ");
+
+    const overlay = document.createElement("div");
+    overlay.className = "level-up-overlay gen-prompt-overlay";
+    overlay.innerHTML = `
+      <div class="gen-prompt-card">
+        <div class="gen-prompt-header">
+          <span class="gen-prompt-icon">✨</span>
+          <div class="gen-prompt-title">New Story</div>
+          <div class="gen-prompt-subtitle">About ${topicLabel}</div>
+        </div>
+
+        <div class="gen-prompt-body">
+          <label class="gen-prompt-label" for="gen-subtopic">What should this story focus on?</label>
+          <input type="text" id="gen-subtopic" class="gen-prompt-input" placeholder="Leave blank for a surprise!" aria-label="Subtopic">
+          <div class="gen-prompt-hint">e.g. "training routines" or "famous plays"</div>
+
+          <label class="gen-prompt-label gen-prompt-label-level">Reading Level</label>
+          <div class="gen-level-picker">
+            <button class="gen-level-btn active" data-level="1">
+              <span class="gen-level-num">Level 1</span>
+              <span class="gen-level-grade">2nd Grade</span>
+            </button>
+            <button class="gen-level-btn" data-level="2">
+              <span class="gen-level-num">Level 2</span>
+              <span class="gen-level-grade">3rd Grade</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="gen-prompt-actions">
+          <button class="gen-prompt-cancel">Cancel</button>
+          <button class="gen-prompt-go">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            Create Story
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Level picker toggle
+    let selectedLevel = 1;
+    overlay.querySelectorAll(".gen-level-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        overlay.querySelectorAll(".gen-level-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        selectedLevel = parseInt(btn.dataset.level);
+      });
+    });
+
+    // Cancel
+    overlay.querySelector(".gen-prompt-cancel").addEventListener("click", () => overlay.remove());
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+
+    // Go
+    overlay.querySelector(".gen-prompt-go").addEventListener("click", async () => {
+      const subtopic = overlay.querySelector("#gen-subtopic").value.trim();
+      overlay.remove();
+      await generateSingleStory(topicId, topicLabel, selectedLevel, subtopic, existingTitles);
+    });
+
+    // Enter key in input
+    overlay.querySelector("#gen-subtopic").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        const subtopic = overlay.querySelector("#gen-subtopic").value.trim();
+        overlay.remove();
+        generateSingleStory(topicId, topicLabel, selectedLevel, subtopic, existingTitles);
+      }
+    });
+
+    // Auto-focus the input
+    setTimeout(() => overlay.querySelector("#gen-subtopic").focus(), 100);
+  }
+
+  async function generateSingleStory(topicId, topicLabel, level, subtopic, existingTitles) {
+    const loadingOverlay = document.createElement("div");
+    loadingOverlay.className = "level-up-overlay";
+    loadingOverlay.innerHTML = `
+      <div class="level-up-card">
+        <span class="level-star" style="animation: bounce-subtle 1s ease-in-out infinite;">✨</span>
+        <div class="level-text" style="font-size:22px;">Writing your story...</div>
+        <div class="level-sub">${subtopic ? `About: ${subtopic}` : `A new ${topicLabel} story`}</div>
+        <div class="gen-progress-bar"><div class="gen-progress-fill" style="width:30%;animation:gen-pulse 1.5s ease-in-out infinite;"></div></div>
+      </div>
+    `;
+    document.body.appendChild(loadingOverlay);
+
+    try {
+      const story = await callAISingle(topicLabel, level, subtopic, existingTitles);
+      const topicIcon = TOPICS.find(t => t.id === topicId)?.icon || "✨";
+      const storyKey = `${topicId}:gen-${Date.now()}`;
+      story.topic = topicId;
+      story.level = level;
+      story.icon = topicIcon;
+      story.id = storyKey;
+
+      state.generatedStories[storyKey] = story;
+      localStorage.setItem("rb_generated", JSON.stringify(state.generatedStories));
+
+      loadingOverlay.remove();
+
+      // Refresh and open the new story
+      buildTopicGrid();
+      selectTopic(topicId);
+    } catch (err) {
+      console.error("Story generation error:", err);
+      const card = loadingOverlay.querySelector(".level-up-card");
+      card.querySelector(".level-text").textContent = "Oops!";
+      const statusEl = card.querySelector(".level-sub");
+      statusEl.style.cssText = "font-size:14px;line-height:1.5;color:var(--red-dark);";
+      statusEl.textContent = err.message || "Could not create the story. Check your API key in Settings.";
+      const bar = card.querySelector(".gen-progress-bar");
+      if (bar) bar.remove();
+      const closeBtn = document.createElement("button");
+      closeBtn.className = "primary-btn";
+      closeBtn.textContent = "OK";
+      closeBtn.style.marginTop = "16px";
+      closeBtn.onclick = () => loadingOverlay.remove();
+      card.appendChild(closeBtn);
+    }
+  }
+
+  async function callAISingle(topicLabel, level, subtopic, existingTitles) {
+    const provider = state.settings.apiProvider || "openai";
+    const apiKey = state.settings.apiKey;
+
+    let levelRules;
+    if (level === 1) {
+      levelRules = `LEVEL 1 — 2nd Grade Reading Level
+- Target: approximately 90-100 words
+- Use 4 paragraphs with 3 sentences each (about 12 sentences total)
+- Average sentence length: 7-8 words. Keep ALL sentences under 12 words
+- Use simple, common words a 2nd grader knows
+- Short, punchy sentences with subject-verb-object structure`;
+    } else {
+      levelRules = `LEVEL 2 — 3rd Grade Reading Level
+- Target: approximately 130-150 words
+- Use 5 paragraphs with 2-3 sentences each (about 11-13 sentences total)
+- Average sentence length: 11-13 words. Some sentences can reach 18 words
+- Use grade-appropriate vocabulary with 3-4 challenging words
+- Use compound sentences and descriptive language`;
+    }
+
+    const focusInstruction = subtopic
+      ? `The story should specifically focus on: "${subtopic}" as it relates to ${topicLabel}.`
+      : `Choose an interesting and unique angle about ${topicLabel} that is different from these existing stories: ${existingTitles || "none yet"}.`;
+
+    const systemPrompt = `You are a children's reading content creator specializing in dyslexia-friendly materials. Create ONE reading passage about the given topic.
+
+${levelRules}
+
+${focusInstruction}
+
+Rules:
+- Make it fun, engaging, and age-appropriate
+- Be factually accurate when discussing real people, places, or things
+- CRITICAL: Hit the target word count. Do NOT write a shorter story.
+
+Respond with ONLY this JSON:
+{
+  "title": "Story Title",
+  "content": ["paragraph1", "paragraph2", "paragraph3"${level === 2 ? ', "paragraph4", "paragraph5"' : ', "paragraph4"'}],
+  "words": ["word1", "word2", "word3", "word4", "word5", "word6", "word7", "word8"],
+  "quiz": [
+    {"q": "Question?", "choices": ["A", "B", "C"], "answer": 0},
+    {"q": "Question?", "choices": ["A", "B", "C"], "answer": 1},
+    {"q": "Question?", "choices": ["A", "B", "C"], "answer": 2}
+  ]
+}`;
+
+    const userPrompt = `Write a ${level === 1 ? "2nd grade (90-100 words)" : "3rd grade (130-150 words)"} reading passage about ${topicLabel}${subtopic ? `, focusing on: ${subtopic}` : ""}.`;
+
+    let text;
+
+    if (provider === "openai") {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.7,
+          max_tokens: 2000,
+          response_format: { type: "json_object" },
+        }),
+      });
+
+      if (!response.ok) {
+        const errBody = await response.text();
+        let errMsg = `OpenAI API error (${response.status})`;
+        try { const j = JSON.parse(errBody); if (j.error?.message) errMsg = j.error.message; } catch (_) {}
+        throw new Error(errMsg);
+      }
+
+      const data = await response.json();
+      text = data.choices[0].message.content;
+    } else if (provider === "anthropic") {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-5-20250929",
+          max_tokens: 2000,
+          system: systemPrompt,
+          messages: [{ role: "user", content: userPrompt }],
+        }),
+      });
+
+      if (!response.ok) {
+        const errBody = await response.text();
+        let errMsg = `Anthropic API error (${response.status})`;
+        try { const j = JSON.parse(errBody); if (j.error?.message) errMsg = j.error.message; } catch (_) {}
+        throw new Error(errMsg);
+      }
+
+      const data = await response.json();
+      text = data.content[0].text;
+    }
+
+    return parseStoryJSON(text);
+  }
+
+  // Bulk generation for new custom topics (generates 6 stories at once)
   async function generateStory(topicId, topicLabel) {
     if (!hasAPIKey()) {
       showAPIKeyPrompt();
