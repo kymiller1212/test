@@ -96,13 +96,24 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 0;
+  flex-wrap: wrap;
+  padding: 14px 0 0;
   position: sticky;
   top: 0;
   background: var(--bg);
   z-index: 50;
   border-bottom: 1px solid var(--border);
   margin-bottom: 12px;
+}
+
+.build-stamp {
+  width: 100%;
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-light);
+  opacity: 0.6;
+  padding: 4px 0 6px;
+  letter-spacing: 0.02em;
 }
 
 .logo {
