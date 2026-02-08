@@ -85,23 +85,21 @@
   }
 
   function updateXPDisplay() {
-    let xpEl = $(".xp-display");
-    let streakEl = $(".streak-display");
+    let statusEl = $(".header-status");
 
-    if (!xpEl) {
-      xpEl = document.createElement("div");
-      xpEl.className = "xp-display";
-      $(".top-actions").prepend(xpEl);
-    }
-    if (!streakEl) {
-      streakEl = document.createElement("div");
-      streakEl.className = "streak-display";
-      $(".top-actions").prepend(streakEl);
+    if (!statusEl) {
+      statusEl = document.createElement("div");
+      statusEl.className = "header-status";
+      $(".top-actions").prepend(statusEl);
     }
 
     const xpForNext = state.level * 50;
-    xpEl.innerHTML = `<span class="xp-icon">⚡</span> ${state.xp}/${xpForNext} XP`;
-    streakEl.innerHTML = `⭐ Level ${state.level}`;
+    const pct = Math.min(100, Math.round((state.xp / xpForNext) * 100));
+    statusEl.innerHTML = `
+      <span class="header-level">Lv ${state.level}</span>
+      <span class="header-xp-bar"><span class="header-xp-fill" style="width:${pct}%"></span></span>
+      <span class="header-xp-text">${state.xp}/${xpForNext}</span>
+    `;
   }
 
   function showXPPopup(amount) {

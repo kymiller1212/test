@@ -92,28 +92,29 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 0;
+  padding: 14px 0;
   position: sticky;
   top: 0;
   background: var(--bg);
   z-index: 50;
-  border-bottom: 2px solid var(--border);
-  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
 }
 
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .logo-icon {
-  font-size: 32px;
+  font-size: 24px;
   animation: bounce-subtle 2s ease-in-out infinite;
 }
 
 .logo-text {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--green);
   letter-spacing: 0.02em;
@@ -122,53 +123,68 @@ body {
 .top-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
-/* --- Progress / XP Bar (in top bar) --- */
-.xp-display {
+/* --- Combined Header Status (Level + XP) --- */
+.header-status {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--green-light);
-  padding: 6px 14px;
+  padding: 6px 12px;
   border-radius: 20px;
-  font-weight: 600;
-  font-size: 15px;
-  color: var(--green-dark);
-}
-
-.xp-display .xp-icon {
-  font-size: 18px;
-}
-
-.streak-display {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   background: var(--bg-card);
-  padding: 6px 14px;
-  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  font-size: 13px;
   font-weight: 600;
-  font-size: 15px;
-  color: var(--orange);
-  border: 2px solid var(--border);
+  color: var(--text);
 }
+
+.header-level {
+  color: var(--orange);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.header-xp-bar {
+  display: block;
+  width: 48px;
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.header-xp-fill {
+  display: block;
+  height: 100%;
+  background: var(--green);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.header-xp-text {
+  color: var(--text-light);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* .streak-display removed - replaced by .header-status */
 
 /* --- Icon Button --- */
 .icon-btn {
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  border: 2px solid var(--border);
+  border: 1.5px solid var(--border);
   background: var(--bg-card);
-  color: var(--text);
+  color: var(--text-light);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: var(--transition);
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .icon-btn:hover {
@@ -1301,9 +1317,13 @@ body {
     width: 100%;
   }
 
-  .xp-display, .streak-display {
+  .header-status {
     padding: 4px 10px;
-    font-size: 13px;
+    gap: 6px;
+  }
+
+  .header-xp-bar {
+    width: 36px;
   }
 
   .story-card {
@@ -1426,73 +1446,51 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
   margin-bottom: 20px;
-  padding: 20px;
+  padding: 24px 20px;
   background: var(--bg-card);
-  border: 2px solid var(--border);
+  border: 1.5px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 2px 0 var(--border);
+  box-shadow: 0 2px 8px var(--shadow);
 }
 
 .practice-prompt {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--text);
   text-align: center;
   min-height: 24px;
+  letter-spacing: 0.01em;
 }
 
-.practice-buttons-row {
+.practice-actions {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 10px;
   width: 100%;
-  justify-content: center;
+  max-width: 340px;
 }
 
-.practice-next-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 14px 24px;
-  border-radius: var(--radius-sm);
-  border: none;
-  background: var(--orange);
-  color: white;
-  font-family: inherit;
-  font-size: 17px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: var(--transition);
-  box-shadow: 0 4px 0 var(--orange-dark);
-}
-
-.practice-next-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 5px 0 var(--orange-dark);
-}
-
-.practice-next-btn:active {
-  transform: translateY(3px);
-  box-shadow: 0 1px 0 var(--orange-dark);
-}
-
+/* Primary: Mic / Read Aloud button */
 .practice-mic-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
-  padding: 14px 28px;
-  border-radius: var(--radius-sm);
+  width: 100%;
+  padding: 16px 24px;
+  border-radius: 50px;
   border: none;
   background: var(--blue);
   color: white;
   font-family: inherit;
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   transition: var(--transition);
   box-shadow: 0 4px 0 var(--blue-dark);
+  letter-spacing: 0.01em;
 }
 
 .practice-mic-btn:hover {
@@ -1517,29 +1515,62 @@ body {
 
 .practice-mic-btn.recording::after {
   content: "Listening...";
-  font-weight: 600;
+  font-weight: 700;
 }
 
-.practice-hear-btn {
+/* Secondary: Next / Skip button */
+.practice-next-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  border-radius: var(--radius-sm);
-  border: 2px solid var(--border);
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  padding: 14px 24px;
+  border-radius: 50px;
+  border: 2.5px solid var(--border);
   background: var(--bg-card);
   color: var(--text);
   font-family: inherit;
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.practice-next-btn:hover {
+  border-color: var(--text-light);
+  background: #f5f5f5;
+}
+
+.practice-next-btn:active {
+  transform: scale(0.97);
+}
+
+/* Tertiary: Help Me link */
+.practice-hear-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 50px;
+  border: none;
+  background: transparent;
+  color: var(--text-light);
+  font-family: inherit;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: var(--transition);
 }
 
 .practice-hear-btn:hover {
-  border-color: var(--orange);
-  background: #FFF3E0;
-  color: var(--orange-dark);
+  color: var(--blue);
+  background: var(--blue-light);
+}
+
+.practice-hear-btn:active {
+  transform: scale(0.96);
 }
 
 .practice-feedback {
@@ -1655,7 +1686,7 @@ body {
 }
 
 .reader-body.mode-line {
-  padding-bottom: 200px;
+  padding-bottom: 260px;
 }
 
 /* --- Line-by-Line Mode Styles --- */
