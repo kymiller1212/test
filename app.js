@@ -276,7 +276,6 @@
     list.innerHTML = "";
 
     if (stories.length === 0 && !hasAPIKey()) {
-      // No pre-built stories and no API key
       list.innerHTML = `
         <div style="text-align:center;padding:40px 20px;">
           <p style="font-size:20px;margin-bottom:16px;font-weight:600;">No stories yet for "${topicLabel}"</p>
@@ -288,37 +287,9 @@
       `;
     }
 
-    stories.forEach((story, idx) => {
-      const storyId = story.id || `${story.topic}:${idx}`;
-      const isRead = state.storiesRead.includes(storyId);
-
-      const card = document.createElement("div");
-      card.className = "story-card";
-      card.setAttribute("role", "button");
-      card.setAttribute("tabindex", "0");
-      card.innerHTML = `
-        <span class="story-icon">${story.icon || "📖"}</span>
-        <div class="story-info">
-          <div class="story-title">${story.title}</div>
-          <div class="story-preview">${story.content[0]}</div>
-        </div>
-        <div class="story-status ${isRead ? "completed" : "unread"}">
-          ${isRead ? "✓" : "▸"}
-        </div>
-      `;
-
-      card.addEventListener("click", () => {
-        story._id = storyId;
-        openReader(story);
-      });
-      list.appendChild(card);
-    });
-
-    // Add "Generate New Story" button if API key is set or even as a prompt
+    // Generate story button at the top
     const genBtn = document.createElement("div");
-    genBtn.className = "story-card";
-    genBtn.style.borderStyle = "dashed";
-    genBtn.style.justifyContent = "center";
+    genBtn.className = "story-card story-card-generate";
     genBtn.innerHTML = `
       <span class="story-icon">✨</span>
       <div class="story-info">
@@ -328,6 +299,124 @@
     `;
     genBtn.addEventListener("click", () => generateStory(topicId, topicLabel));
     list.appendChild(genBtn);
+
+    // Separate stories by level
+    const level1 = stories.filter(s => !s.level || s.level === 1);
+    const level2 = stories.filter(s => s.level === 2);
+    const generated = stories.filter(s => s.id && s.id.includes(":gen-"));
+
+    // Render Level 1 section
+    if (level1.length > 0) {
+      const l1Count = level1.filter(s => {
+        const idx = stories.indexOf(s);
+        const sid = s.id || `${s.topic}:${idx}`;
+        return state.storiesRead.includes(sid);
+      }).length;
+      const l1Header = document.createElement("div");
+      l1Header.className = "level-header";
+      l1Header.innerHTML = `
+        <div class="level-badge level-1-badge">Level 1</div>
+        <div class="level-info">
+          <div class="level-desc">2nd Grade</div>
+          <div class="level-progress-text">${l1Count} / ${level1.length} complete</div>
+        </div>
+        <div class="level-progress-ring">
+          <svg viewBox="0 0 36 36">
+            <path class="level-ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+            <path class="level-ring-fill level-1-ring" stroke-dasharray="${level1.length > 0 ? Math.round((l1Count / level1.length) * 100) : 0}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+          </svg>
+          ${l1Count === level1.length && level1.length > 0 ? '<span class="level-check">✓</span>' : ''}
+        </div>
+      `;
+      list.appendChild(l1Header);
+
+      level1.forEach(story => {
+        const idx = stories.indexOf(story);
+        appendStoryCard(list, story, stories, idx);
+      });
+    }
+
+    // Render Level 2 section
+    if (level2.length > 0) {
+      const l2Count = level2.filter(s => {
+        const idx = stories.indexOf(s);
+        const sid = s.id || `${s.topic}:${idx}`;
+        return state.storiesRead.includes(sid);
+      }).length;
+      const l1AllRead = level1.every(s => {
+        const idx = stories.indexOf(s);
+        const sid = s.id || `${s.topic}:${idx}`;
+        return state.storiesRead.includes(sid);
+      });
+
+      const l2Header = document.createElement("div");
+      l2Header.className = "level-header";
+      l2Header.innerHTML = `
+        <div class="level-badge level-2-badge">Level 2</div>
+        <div class="level-info">
+          <div class="level-desc">3rd Grade</div>
+          <div class="level-progress-text">${l2Count} / ${level2.length} complete</div>
+        </div>
+        <div class="level-progress-ring">
+          <svg viewBox="0 0 36 36">
+            <path class="level-ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+            <path class="level-ring-fill level-2-ring" stroke-dasharray="${level2.length > 0 ? Math.round((l2Count / level2.length) * 100) : 0}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+          </svg>
+          ${l2Count === level2.length && level2.length > 0 ? '<span class="level-check">✓</span>' : ''}
+        </div>
+      `;
+      list.appendChild(l2Header);
+
+      level2.forEach(story => {
+        const idx = stories.indexOf(story);
+        appendStoryCard(list, story, stories, idx);
+      });
+    }
+
+    // Render generated stories
+    if (generated.length > 0) {
+      const genHeader = document.createElement("div");
+      genHeader.className = "level-header";
+      genHeader.innerHTML = `
+        <div class="level-badge level-gen-badge">Custom</div>
+        <div class="level-info">
+          <div class="level-desc">AI Generated</div>
+          <div class="level-progress-text">${generated.length} ${generated.length === 1 ? 'story' : 'stories'}</div>
+        </div>
+      `;
+      list.appendChild(genHeader);
+
+      generated.forEach(story => {
+        const idx = stories.indexOf(story);
+        appendStoryCard(list, story, stories, idx);
+      });
+    }
+  }
+
+  function appendStoryCard(list, story, allStories, idx) {
+    const storyId = story.id || `${story.topic}:${idx}`;
+    const isRead = state.storiesRead.includes(storyId);
+
+    const card = document.createElement("div");
+    card.className = "story-card";
+    card.setAttribute("role", "button");
+    card.setAttribute("tabindex", "0");
+    card.innerHTML = `
+      <span class="story-icon">${story.icon || "📖"}</span>
+      <div class="story-info">
+        <div class="story-title">${story.title}</div>
+        <div class="story-preview">${story.content[0]}</div>
+      </div>
+      <div class="story-status ${isRead ? "completed" : "unread"}">
+        ${isRead ? "✓" : "▸"}
+      </div>
+    `;
+
+    card.addEventListener("click", () => {
+      story._id = storyId;
+      openReader(story);
+    });
+    list.appendChild(card);
   }
 
   // --- Story Generation ---
