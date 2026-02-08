@@ -81,7 +81,6 @@
   }
 
   let authResolved = false;
-  let redirectHandled = false;
 
   function initFirebase() {
     const fbConfig = getFirebaseConfig();
@@ -97,36 +96,26 @@
       firebaseDB = firebase.firestore();
       firebaseAuth = firebase.auth();
 
-      // Check for redirect result first (runs after Google sign-in redirect)
+      // IMPORTANT: Process the redirect result FIRST, before setting up onAuthStateChanged.
+      // getRedirectResult resolves with the user if we're returning from a sign-in redirect.
+      // If we're NOT returning from a redirect, it resolves with null.
+      // Only AFTER this resolves do we set up the auth state listener.
       firebaseAuth.getRedirectResult().then((result) => {
-        redirectHandled = true;
         if (result && result.user) {
+          // We're back from a successful redirect sign-in
           firebaseUser = result.user;
           updateSyncUI();
-          handleAuthenticatedUser(result.user, true);
+          handleAuthenticatedUser(result.user);
+          // Now set up ongoing listener for sign-outs
+          setupAuthListener();
+          return;
         }
+        // Not a redirect return — set up normal auth listener
+        setupAuthListener();
       }).catch((err) => {
-        redirectHandled = true;
         console.warn("Redirect sign-in error:", err);
-      });
-
-      // Listen for auth state changes — this is the primary auth gate
-      firebaseAuth.onAuthStateChanged((user) => {
-        firebaseUser = user;
-        updateSyncUI();
-        if (!authResolved) {
-          authResolved = true;
-          if (user) {
-            handleAuthenticatedUser(user, false);
-          } else {
-            showLandingPage();
-          }
-        } else {
-          // Subsequent auth changes (sign out)
-          if (!user) {
-            showLandingPage();
-          }
-        }
+        // Still set up the listener so the app isn't stuck
+        setupAuthListener();
       });
     } catch (e) {
       console.warn("Firebase init failed:", e);
@@ -134,7 +123,27 @@
     }
   }
 
-  function handleAuthenticatedUser(user, fromRedirect) {
+  function setupAuthListener() {
+    firebaseAuth.onAuthStateChanged((user) => {
+      firebaseUser = user;
+      updateSyncUI();
+      if (!authResolved) {
+        authResolved = true;
+        if (user) {
+          handleAuthenticatedUser(user);
+        } else {
+          showLandingPage();
+        }
+      } else {
+        // Subsequent auth changes (sign out)
+        if (!user) {
+          showLandingPage();
+        }
+      }
+    });
+  }
+
+  function handleAuthenticatedUser(user) {
     // Check if this is a new user who needs onboarding
     const onboarded = localStorage.getItem("rb_onboarded");
     if (onboarded === "true") {
