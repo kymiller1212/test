@@ -42,7 +42,8 @@
     lineIndex: 0,
     practiceAttempts: 0,
     practiceTimers: [],
-    helpInProgress: false
+    helpInProgress: false,
+    tappedWords: new Set()
   };
 
   // --- DOM Refs ---
@@ -660,6 +661,7 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
   // --- Reader ---
   function openReader(story) {
     state.currentStory = story;
+    state.tappedWords = new Set();
     stopSpeaking();
 
     $("#reader-title").textContent = story.title;
@@ -833,6 +835,18 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
 
   // Two-tap word interaction: first tap shows syllables, second speaks + hides
   function handleWordTap(span, word) {
+    // Track tap for XP penalty (once per unique word per story)
+    const cleanWord = word.replace(/[^a-zA-Z'-]/g, "").toLowerCase();
+    if (cleanWord && !state.tappedWords.has(cleanWord)) {
+      state.tappedWords.add(cleanWord);
+      if (state.xp > 0) {
+        state.xp = Math.max(0, state.xp - 1);
+        localStorage.setItem("rb_xp", state.xp);
+        updateXPDisplay();
+      }
+      markWordBankTapped(cleanWord);
+    }
+
     if (state.syllableMode) {
       const syllDiv = span.querySelector(".syllables");
       if (syllDiv) {
@@ -850,6 +864,16 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
     }
     // No syllable mode or no syllable div: speak immediately
     speakWord(span, word);
+  }
+
+  function markWordBankTapped(tappedWord) {
+    $$(".word-chip").forEach((chip) => {
+      const chipWord = chip.textContent.toLowerCase().trim();
+      // Check if any word in the chip matches
+      if (chipWord === tappedWord || chipWord.split(/\s+/).some(w => w === tappedWord)) {
+        chip.classList.add("word-tapped");
+      }
+    });
   }
 
   function speakWord(span, word) {
@@ -1884,9 +1908,6 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
     const lines = state.practiceLines;
     if (state.lineIndex >= lines.length) return;
 
-    const currentLine = lines[state.lineIndex];
-    currentLine.element.classList.remove("line-current");
-    currentLine.element.classList.add("line-done");
     state.lineIndex++;
     state.practiceAttempts = 0;
     state.helpInProgress = false;
@@ -1894,83 +1915,130 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
     updatePracticeProgress(state.lineIndex, state.practiceLines.length);
 
     if (state.lineIndex < state.practiceLines.length) {
-      const nextLine = state.practiceLines[state.lineIndex];
-      nextLine.element.classList.remove("line-hidden");
-      nextLine.element.classList.add("line-current");
-      nextLine.element.scrollIntoView({ behavior: "smooth", block: "center" });
+      highlightVisualLine(state.lineIndex);
       updatePracticePrompt();
     } else {
+      highlightVisualLine(state.lineIndex);
       practiceComplete();
     }
   }
 
-  // --- Line-by-Line Mode ---
+  // --- Line-by-Line Mode (visual lines) ---
   function initLineMode() {
     const body = $("#reader-body");
     const story = state.currentStory;
     body.innerHTML = "";
 
-    const allLines = [];
-
+    // Render all text normally
+    const allWordSpans = [];
     story.content.forEach((para, pIdx) => {
       const pEl = document.createElement("div");
       pEl.className = "paragraph";
       pEl.dataset.pindex = pIdx;
 
-      // Split into sentences (capture trailing text without punctuation too)
-      const sentenceMatches = para.match(/[^.!?]+[.!?]+/g) || [];
-      const matchedText = sentenceMatches.join("");
-      const remainder = para.slice(matchedText.length).trim();
-      const sentences = remainder ? [...sentenceMatches, remainder] : (sentenceMatches.length > 0 ? sentenceMatches : [para]);
-
-      sentences.forEach((sentence) => {
-        const lineGroup = document.createElement("div");
-        lineGroup.className = "line-group line-hidden";
-        lineGroup.dataset.lineIndex = allLines.length;
-
-        const lineWords = [];
-        const words = sentence.trim().split(/(\s+)/);
-        words.forEach((w) => {
-          if (/^\s+$/.test(w)) {
-            lineGroup.appendChild(document.createTextNode(w));
-          } else {
-            const span = document.createElement("span");
-            span.className = "word";
-            span.textContent = w;
-            if (state.syllableMode) {
-              const syllDiv = document.createElement("span");
-              syllDiv.className = "syllables";
-              syllDiv.textContent = syllabify(w);
-              span.appendChild(syllDiv);
-            }
-            span.addEventListener("click", () => handleWordTap(span, w));
-            lineGroup.appendChild(span);
-            lineWords.push(w);
+      const words = para.split(/(\s+)/);
+      words.forEach((w) => {
+        if (/^\s+$/.test(w)) {
+          pEl.appendChild(document.createTextNode(w));
+        } else {
+          const span = document.createElement("span");
+          span.className = "word";
+          span.textContent = w;
+          if (state.syllableMode) {
+            const syllDiv = document.createElement("span");
+            syllDiv.className = "syllables";
+            syllDiv.textContent = syllabify(w);
+            span.appendChild(syllDiv);
           }
-        });
-
-        allLines.push({ element: lineGroup, words: lineWords });
-        pEl.appendChild(lineGroup);
+          span.addEventListener("click", () => handleWordTap(span, w));
+          pEl.appendChild(span);
+          allWordSpans.push({ span, word: w });
+        }
       });
-
       body.appendChild(pEl);
     });
 
-    state.practiceLines = allLines;
-    state.lineIndex = 0;
-    state.practiceAttempts = 0;
+    // After layout, detect visual lines by Y-position of each word
+    requestAnimationFrame(() => {
+      const visualLines = [];
+      let currentLineTop = null;
+      let currentLine = null;
 
-    if (allLines.length > 0) {
-      allLines[0].element.classList.remove("line-hidden");
-      allLines[0].element.classList.add("line-current");
-      allLines[0].element.scrollIntoView({ behavior: "smooth", block: "center" });
+      allWordSpans.forEach(({ span, word }) => {
+        const top = span.getBoundingClientRect().top;
+        if (currentLineTop === null || Math.abs(top - currentLineTop) > 5) {
+          if (currentLine) visualLines.push(currentLine);
+          currentLine = { words: [word], spans: [span] };
+          currentLineTop = top;
+        } else {
+          currentLine.words.push(word);
+          currentLine.spans.push(span);
+        }
+      });
+      if (currentLine && currentLine.spans.length > 0) {
+        visualLines.push(currentLine);
+      }
+
+      state.practiceLines = visualLines;
+      state.lineIndex = 0;
+      state.practiceAttempts = 0;
+
+      // Fade all words, then highlight first line
+      allWordSpans.forEach(({ span }) => span.classList.add("vline-faded"));
+      if (visualLines.length > 0) {
+        highlightVisualLine(0);
+      }
+
+      updatePracticeProgress(0, visualLines.length);
+      updatePracticePrompt();
+      setupPracticeMic();
+      setupPracticeHearBtn();
+      setupPracticeNextBtn();
+    });
+  }
+
+  function highlightVisualLine(index) {
+    const lines = state.practiceLines;
+    const body = $("#reader-body");
+
+    lines.forEach((line, i) => {
+      line.spans.forEach((span) => {
+        span.classList.remove("vline-active", "vline-done", "vline-faded");
+        if (i < index) {
+          span.classList.add("vline-done");
+        } else if (i === index) {
+          span.classList.add("vline-active");
+        } else {
+          span.classList.add("vline-faded");
+        }
+      });
+    });
+
+    // Position floating highlight bar
+    let bar = body.querySelector(".line-highlight-bar");
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.className = "line-highlight-bar";
+      body.appendChild(bar);
     }
 
-    updatePracticeProgress(0, allLines.length);
-    updatePracticePrompt();
-    setupPracticeMic();
-    setupPracticeHearBtn();
-    setupPracticeNextBtn();
+    if (index < lines.length && lines[index].spans.length > 0) {
+      const firstSpan = lines[index].spans[0];
+      const lastSpan = lines[index].spans[lines[index].spans.length - 1];
+      const bodyRect = body.getBoundingClientRect();
+      const firstRect = firstSpan.getBoundingClientRect();
+      const lastRect = lastSpan.getBoundingClientRect();
+
+      bar.style.top = (firstRect.top - bodyRect.top - 6) + "px";
+      bar.style.left = (firstRect.left - bodyRect.left - 10) + "px";
+      bar.style.width = (lastRect.right - firstRect.left + 20) + "px";
+      bar.style.height = (firstRect.height + 12) + "px";
+      bar.style.display = "block";
+
+      firstSpan.scrollIntoView({ behavior: "smooth", block: "center" });
+    } else {
+      bar.style.display = "none";
+    }
   }
 
   function handleLineResult(transcript) {
@@ -1983,8 +2051,8 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
       lineCorrect(currentLine);
     } else {
       state.practiceAttempts++;
-      currentLine.element.classList.add("word-wrong-flash");
-      setTimeout(() => currentLine.element.classList.remove("word-wrong-flash"), 500);
+      currentLine.spans.forEach((s) => s.classList.add("vline-wrong-flash"));
+      setTimeout(() => currentLine.spans.forEach((s) => s.classList.remove("vline-wrong-flash")), 500);
 
       if (state.practiceAttempts >= 3 && !state.helpInProgress) {
         showPracticeFeedback("Let me help you with that one!", "helped");
@@ -1999,25 +2067,22 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
 
   function lineCorrect(line) {
     showPracticeFeedback(getRandomPraise(), "correct");
-    line.element.classList.remove("line-current");
-    line.element.classList.add("line-correct-flash");
+    // Flash correct on current line's word spans
+    line.spans.forEach((s) => s.classList.add("vline-correct-flash"));
 
     const t = setTimeout(() => {
       if (state.readingMode !== "line") return;
-      line.element.classList.remove("line-correct-flash");
-      line.element.classList.add("line-done");
+      line.spans.forEach((s) => s.classList.remove("vline-correct-flash"));
       state.lineIndex++;
       state.practiceAttempts = 0;
 
       updatePracticeProgress(state.lineIndex, state.practiceLines.length);
 
       if (state.lineIndex < state.practiceLines.length) {
-        const nextLine = state.practiceLines[state.lineIndex];
-        nextLine.element.classList.remove("line-hidden");
-        nextLine.element.classList.add("line-current");
-        nextLine.element.scrollIntoView({ behavior: "smooth", block: "center" });
+        highlightVisualLine(state.lineIndex);
         updatePracticePrompt();
       } else {
+        highlightVisualLine(state.lineIndex);
         practiceComplete();
       }
     }, 600);
@@ -2038,20 +2103,16 @@ The "quiz" array should have 3 simple comprehension questions with 3 choices eac
       const t = setTimeout(() => {
         if (state.readingMode !== "line" || state.lineIndex !== savedIndex) return;
         state.helpInProgress = false;
-        currentLine.element.classList.remove("line-current");
-        currentLine.element.classList.add("line-done");
         state.lineIndex++;
         state.practiceAttempts = 0;
 
         updatePracticeProgress(state.lineIndex, state.practiceLines.length);
 
         if (state.lineIndex < state.practiceLines.length) {
-          const nextLine = state.practiceLines[state.lineIndex];
-          nextLine.element.classList.remove("line-hidden");
-          nextLine.element.classList.add("line-current");
-          nextLine.element.scrollIntoView({ behavior: "smooth", block: "center" });
+          highlightVisualLine(state.lineIndex);
           updatePracticePrompt();
         } else {
+          highlightVisualLine(state.lineIndex);
           practiceComplete();
         }
       }, 800);

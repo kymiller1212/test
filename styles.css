@@ -758,6 +758,12 @@ body {
   border-color: var(--green-dark);
 }
 
+.word-chip.word-tapped {
+  background: #FFE0E0;
+  color: var(--red-dark);
+  border-color: var(--red);
+}
+
 /* --- Quiz Screen --- */
 .quiz-title {
   text-align: center;
@@ -1705,54 +1711,55 @@ body {
   padding-bottom: 260px;
 }
 
-/* --- Line-by-Line Mode Styles --- */
+/* --- Line-by-Line Mode Styles (visual lines) --- */
+.reader-body.mode-line {
+  position: relative;
+}
+
 .reader-body.mode-line .paragraph {
-  transition: all 0.4s ease;
+  background: transparent;
+  box-shadow: none;
+  border: none;
 }
 
-.reader-body.mode-line .line-group {
-  padding: 6px 0;
-  border-radius: 6px;
-  transition: all 0.4s ease;
+.reader-body.mode-line .word {
+  transition: opacity 0.3s ease, color 0.3s ease;
 }
 
-.reader-body.mode-line .line-group.line-hidden {
-  opacity: 0;
-  max-height: 0;
-  overflow: hidden;
-  padding: 0;
-  margin: 0;
+.reader-body.mode-line .word.vline-faded {
+  opacity: 0.2;
 }
 
-.reader-body.mode-line .line-group.line-done {
-  opacity: 0.5;
-}
-
-.reader-body.mode-line .line-group.line-done .word {
+.reader-body.mode-line .word.vline-done {
+  opacity: 0.45;
   color: var(--green-dark);
 }
 
-.reader-body.mode-line .line-group.line-current {
+.reader-body.mode-line .word.vline-active {
   opacity: 1;
-  background: var(--yellow);
-  padding: 10px 14px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(255, 200, 0, 0.3);
-  animation: line-glow 2s ease-in-out infinite;
-}
-
-.reader-body.mode-line .line-group.line-current .word {
+  position: relative;
+  z-index: 2;
   font-weight: 500;
 }
 
-.reader-body.mode-line .line-group.line-correct-flash {
-  background: var(--green-light) !important;
-  box-shadow: 0 2px 12px rgba(88, 204, 2, 0.4) !important;
+.reader-body.mode-line .word.vline-correct-flash {
+  color: var(--green-dark);
+  opacity: 1;
 }
 
-@keyframes line-glow {
-  0%, 100% { box-shadow: 0 2px 12px rgba(255, 200, 0, 0.3); }
-  50% { box-shadow: 0 2px 20px rgba(255, 200, 0, 0.5); }
+.reader-body.mode-line .word.vline-wrong-flash {
+  opacity: 1;
+  animation: shake 0.4s ease;
+}
+
+.line-highlight-bar {
+  position: absolute;
+  background: var(--yellow);
+  border-radius: 8px;
+  z-index: 1;
+  pointer-events: none;
+  transition: top 0.35s ease, left 0.35s ease, width 0.35s ease, height 0.35s ease;
+  box-shadow: 0 2px 12px rgba(255, 200, 0, 0.3);
 }
 
 /* Practice mode completed banner */
