@@ -2,12 +2,12 @@
 // Returns existing stories so we don't regenerate topics that already exist.
 // Requires the "Anyone can read stories" RLS policy on generated_stories.
 
-import { createClient } from "@supabase/supabase-js";
+const { createClient } = require("@supabase/supabase-js");
 
 const SUPABASE_URL = "https://grptfqinfouolxrrvnaz.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdycHRmcWluZm91b2x4cnJ2bmF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1OTI0ODYsImV4cCI6MjA4NjE2ODQ4Nn0.NUAp55a0GJDuq8L01lTYWVVGYJwvvZg3L6nzYVH5HFA";
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
@@ -34,4 +34,4 @@ export default async function handler(req, res) {
     console.error("Cache lookup error:", err);
     return res.status(200).json({ stories: [] });
   }
-}
+};

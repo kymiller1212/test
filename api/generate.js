@@ -1,7 +1,7 @@
 // Vercel Serverless Function — proxies OpenAI requests using the site owner's API key.
 // The key is stored as a Vercel environment variable (OPENAI_API_KEY) and never sent to the browser.
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { messages, max_tokens, temperature, mode } = req.body;
+    const { messages, max_tokens, temperature } = req.body;
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -50,4 +50,4 @@ export default async function handler(req, res) {
     console.error("generate error:", err);
     return res.status(500).json({ error: err.message || "Internal server error" });
   }
-}
+};
