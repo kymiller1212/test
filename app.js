@@ -80,8 +80,6 @@
     return getFirebaseConfig() !== null;
   }
 
-  let authResolved = false;
-
   function isMobileDevice() {
     return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   }
@@ -113,47 +111,8 @@
     }
   }
 
-  function handleAuthenticatedUser(user) {
-    console.log("[Auth] handleAuthenticatedUser called for:", user.email);
-    // Check if this is a new user who needs onboarding
-    const onboarded = localStorage.getItem("rb_onboarded");
-    console.log("[Auth] localStorage rb_onboarded:", onboarded);
-    if (onboarded === "true") {
-      console.log("[Auth] Already onboarded — loading cloud data and showing app");
-      loadFromCloud();
-      showAppView();
-      return;
-    }
-
-    // Check Firestore for existing data (could be new device)
-    if (firebaseDB) {
-      console.log("[Auth] Checking Firestore for onboarding status...");
-      firebaseDB.collection("users").doc(user.uid).get().then((doc) => {
-        console.log("[Auth] Firestore doc exists:", doc.exists, doc.exists ? doc.data() : "");
-        if (doc.exists && doc.data().onboarded) {
-          localStorage.setItem("rb_onboarded", "true");
-          // Load user topics if stored
-          if (doc.data().userTopics) {
-            localStorage.setItem("rb_user_topics", JSON.stringify(doc.data().userTopics));
-            loadUserTopics();
-          }
-          loadFromCloud();
-          showAppView();
-        } else {
-          // New user — show onboarding
-          console.log("[Auth] New user — showing onboarding");
-          showOnboarding(user);
-        }
-      }).catch((err) => {
-        // Firestore error — show onboarding as fallback
-        console.warn("[Auth] Firestore check failed:", err.code, err.message, "— showing onboarding anyway");
-        showOnboarding(user);
-      });
-    } else {
-      console.log("[Auth] No Firestore — showing onboarding");
-      showOnboarding(user);
-    }
-  }
+  // handleAuthenticatedUser is no longer used for view routing.
+  // Auth is background-only for cloud sync. See setupAuthListener().
 
   function updateSyncUI() {
     const statusEl = document.getElementById("sync-status");
@@ -381,44 +340,25 @@
     updateXPDisplay();
   }
 
-  function showOnboarding(user) {
-    console.log("[View] showOnboarding for:", user?.email);
+  function showOnboarding() {
     document.getElementById("landing-page").style.display = "none";
     document.getElementById("app").style.display = "none";
     document.getElementById("onboarding").style.display = "";
-    setupOnboarding(user);
+    setupOnboarding();
   }
 
   function updateLandingCTAs() {
-    const isLoggedIn = !!firebaseUser;
     const navBtn = document.getElementById("lp-nav-cta");
     const ctaBtns = document.querySelectorAll(".lp-cta-btn");
 
-    if (isLoggedIn) {
-      if (navBtn) {
-        navBtn.textContent = "Open App";
-        navBtn.onclick = () => showAppView();
-      }
-      ctaBtns.forEach(btn => {
-        btn.textContent = "Back to Reading";
-        btn.onclick = () => showAppView();
-      });
-    } else {
-      if (navBtn) {
-        navBtn.textContent = "Get Started";
-        navBtn.onclick = signInWithGoogle;
-      }
-      ctaBtns.forEach(btn => {
-        btn.textContent = "Get Started \u2014 It's Free";
-        btn.onclick = signInWithGoogle;
-      });
+    if (navBtn) {
+      navBtn.textContent = "Get Started";
+      navBtn.onclick = () => showOnboarding();
     }
-  }
-
-  function setupLandingPage() {
-    // CTA click handlers are set dynamically by updateLandingCTAs()
-    // which is called by showLandingPage(). We don't add addEventListener here
-    // to avoid duplicate handlers (addEventListener + onclick = two calls).
+    ctaBtns.forEach(btn => {
+      btn.textContent = "Get Started \u2014 It's Free";
+      btn.onclick = () => showOnboarding();
+    });
   }
 
   // --- User Topics (persist custom topics across reloads) ---
@@ -442,22 +382,17 @@
   let obProvider = "openai";
   let obGeneratedTopics = [];
 
-  function setupOnboarding(user) {
+  function setupOnboarding() {
     obStep = 0;
     obProvider = "openai";
     obGeneratedTopics = [];
     updateObStep(0);
 
-    // Welcome step - show user info
+    // Welcome step
     const avatarEl = document.getElementById("ob-avatar");
     const nameEl = document.getElementById("ob-welcome-name");
-    if (user.photoURL) {
-      avatarEl.innerHTML = `<img src="${user.photoURL}" alt="Profile photo">`;
-    } else {
-      avatarEl.textContent = "👋";
-    }
-    const firstName = (user.displayName || "").split(" ")[0] || "Reader";
-    nameEl.textContent = `Welcome, ${firstName}!`;
+    avatarEl.textContent = "👋";
+    nameEl.textContent = "Welcome to ReadBuddy!";
 
     // Step navigation
     document.getElementById("ob-go-1").onclick = () => updateObStep(1);
@@ -839,6 +774,13 @@ Generate 6 fun, specific reading topics based on these interests.`;
     addSyncSettingsUI();
     setupModeSelector();
     initFirebase();
+
+    // Route: if already onboarded, show app. Otherwise show landing page.
+    if (localStorage.getItem("rb_onboarded") === "true") {
+      showAppView();
+    } else {
+      showLandingPage();
+    }
   }
 
   // --- Streak Tracking ---
