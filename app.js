@@ -394,52 +394,6 @@
     }
   }
 
-  // --- Store API key securely (encrypted server-side) ---
-  async function storeAPIKeyInCloud(key, provider) {
-    if (!sb || !sbUser) return;
-    try {
-      await sb.rpc("store_api_key", { p_key: key, p_provider: provider });
-    } catch (err) {
-      console.warn("Failed to store API key in cloud:", err);
-    }
-  }
-
-  // --- Check if user has API key in cloud ---
-  async function hasAPIKeyInCloud() {
-    if (!sb || !sbUser) return false;
-    try {
-      const { data } = await sb.rpc("has_api_key");
-      return !!data;
-    } catch (err) {
-      return false;
-    }
-  }
-
-  // --- Call Edge Function for AI generation ---
-  async function callEdgeFunction(body) {
-    if (!sb) throw new Error("Not connected to Supabase");
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) throw new Error("Not signed in. Please sign in to generate stories.");
-
-    const cfg = getSupabaseConfig();
-    const response = await fetch(`${cfg.url}/functions/v1/generate-story`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${session.access_token}`,
-        "apikey": cfg.anonKey
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
-      throw new Error(errData.error || `Generation failed (${response.status})`);
-    }
-
-    return response.json();
-  }
-
   function addSyncSettingsUI() {
     if (!isSupabaseConfigured()) return;
 
@@ -543,28 +497,15 @@
     const firstName = (user?.user_metadata?.full_name || "").split(" ")[0] || "Reader";
     nameEl.textContent = `Welcome, ${firstName}!`;
 
-    // Step navigation
-    document.getElementById("ob-go-1").onclick = () => updateObStep(1);
-    document.getElementById("ob-go-2").onclick = () => handleObAPIKey();
-    document.getElementById("ob-skip-api").onclick = () => {
-      // No API key → skip interests/generation, go straight to ready with default stories
-      updateObStep(4);
-      document.getElementById("ob-ready-msg").textContent = "You're all set with 54 built-in stories! You can add an API key in Settings anytime to generate custom stories.";
-      document.getElementById("ob-ready-topics").innerHTML = "";
-    };
+    // Step navigation — skip API key step (step 1), go straight to interests (step 2)
+    document.getElementById("ob-go-1").onclick = () => updateObStep(2);
+    // Keep these wired up in case the HTML still references them
+    const skipBtn = document.getElementById("ob-skip-api");
+    if (skipBtn) skipBtn.onclick = () => updateObStep(2);
+    const go2Btn = document.getElementById("ob-go-2");
+    if (go2Btn) go2Btn.onclick = () => updateObStep(2);
     document.getElementById("ob-go-3").onclick = () => handleObGenerate();
     document.getElementById("ob-start-reading").onclick = () => finishOnboarding();
-
-    // Provider tabs
-    document.querySelectorAll(".ob-tab").forEach(tab => {
-      tab.addEventListener("click", () => {
-        document.querySelectorAll(".ob-tab").forEach(t => t.classList.remove("active"));
-        tab.classList.add("active");
-        obProvider = tab.dataset.provider;
-        document.getElementById("ob-key-openai").style.display = obProvider === "openai" ? "" : "none";
-        document.getElementById("ob-key-anthropic").style.display = obProvider === "anthropic" ? "" : "none";
-      });
-    });
   }
 
   function updateObStep(step) {
@@ -580,54 +521,10 @@
     });
   }
 
-  async function handleObAPIKey() {
-    const keyInput = obProvider === "openai"
-      ? document.getElementById("ob-api-key-openai")
-      : document.getElementById("ob-api-key-anthropic");
-    const key = keyInput.value.trim();
-    const errorEl = document.getElementById("ob-api-error");
-
-    if (!key) {
-      errorEl.textContent = "Please paste your API key, or tap \"Skip for now\" below.";
-      errorEl.style.display = "";
-      return;
-    }
-
-    // Basic format validation
-    if (obProvider === "openai" && !key.startsWith("sk-")) {
-      errorEl.textContent = "OpenAI keys start with \"sk-\". Please check your key.";
-      errorEl.style.display = "";
-      return;
-    }
-    if (obProvider === "anthropic" && !key.startsWith("sk-ant-")) {
-      errorEl.textContent = "Anthropic keys start with \"sk-ant-\". Please check your key.";
-      errorEl.style.display = "";
-      return;
-    }
-
-    errorEl.style.display = "none";
-
-    // Store API key encrypted in Supabase (never kept in browser after this)
-    state.settings.apiProvider = obProvider;
-    state.settings.apiKey = key; // Temporarily hold for onboarding generation
-    saveSettings();
-    await storeAPIKeyInCloud(key, obProvider);
-
-    updateObStep(2);
-  }
-
   async function handleObGenerate() {
     const interests = document.getElementById("ob-interests").value.trim();
     if (!interests) {
       document.getElementById("ob-interests").style.borderColor = "var(--red)";
-      return;
-    }
-
-    if (!hasAPIKey()) {
-      // Skip to done step without generating
-      updateObStep(4);
-      document.getElementById("ob-ready-msg").textContent = "You can add an API key in Settings later to generate custom stories.";
-      document.getElementById("ob-ready-topics").innerHTML = "";
       return;
     }
 
@@ -777,29 +674,22 @@
     }
   }
 
-  async function generateTopicNames(interests) {
-    // Try Edge Function first (API key stored server-side)
-    if (sb && sbUser) {
-      try {
-        const parsed = await callEdgeFunction({ mode: "topics", interests });
-        const topicColors = ["#E53935", "#1E88E5", "#43A047", "#FB8C00", "#8E24AA", "#00897B"];
-        return parsed.topics.map((t, i) => ({
-          id: t.name.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, "-"),
-          label: t.name,
-          icon: t.icon,
-          color: topicColors[i % topicColors.length]
-        }));
-      } catch (edgeErr) {
-        // If Edge Function fails and we have a local key, fall through to direct call
-        if (!state.settings.apiKey) throw edgeErr;
-        console.warn("Edge Function failed, falling back to direct API call:", edgeErr.message);
-      }
+  // Helper: call the Vercel serverless proxy (/api/generate)
+  async function callServerAI(messages, { max_tokens, temperature } = {}) {
+    const response = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages, max_tokens, temperature })
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+      throw new Error(err.error || `Server error (${response.status})`);
     }
+    const data = await response.json();
+    return data.text;
+  }
 
-    // Fallback: direct API call (during onboarding when key is temporarily in memory)
-    const provider = state.settings.apiProvider || "openai";
-    const apiKey = state.settings.apiKey;
-
+  async function generateTopicNames(interests) {
     const topicColors = ["#E53935", "#1E88E5", "#43A047", "#FB8C00", "#8E24AA", "#00897B"];
 
     const systemPrompt = `You generate reading topic names for a children's reading app. Given a parent's description of their child's interests, create exactly 6 unique topic names.
@@ -821,58 +711,13 @@ Respond with ONLY this JSON:
   ]
 }`;
 
-    const userPrompt = `My child's interests: ${interests}
+    const userPrompt = `My child's interests: ${interests}\n\nGenerate 6 fun, specific reading topics based on these interests.`;
 
-Generate 6 fun, specific reading topics based on these interests.`;
+    const text = await callServerAI(
+      [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
+      { max_tokens: 500, temperature: 0.8 }
+    );
 
-    let text;
-    if (provider === "openai") {
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
-          temperature: 0.8,
-          max_tokens: 500,
-          response_format: { type: "json_object" }
-        })
-      });
-      if (!response.ok) {
-        const errBody = await response.text();
-        let errMsg = `API error (${response.status})`;
-        try { const j = JSON.parse(errBody); if (j.error?.message) errMsg = j.error.message; } catch (_) {}
-        throw new Error(errMsg);
-      }
-      const data = await response.json();
-      text = data.choices[0].message.content;
-    } else {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true"
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5-20250929",
-          max_tokens: 500,
-          system: systemPrompt,
-          messages: [{ role: "user", content: userPrompt }]
-        })
-      });
-      if (!response.ok) {
-        const errBody = await response.text();
-        let errMsg = `API error (${response.status})`;
-        try { const j = JSON.parse(errBody); if (j.error?.message) errMsg = j.error.message; } catch (_) {}
-        throw new Error(errMsg);
-      }
-      const data = await response.json();
-      text = data.content[0].text;
-    }
-
-    // Parse response
     let jsonStr = text;
     const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (jsonMatch) jsonStr = jsonMatch[1];
@@ -950,7 +795,6 @@ Generate 6 fun, specific reading topics based on these interests.`;
     setupRuler();
     applySettings();
     updateXPDisplay();
-    addAPISettingsUI();
     addSyncSettingsUI();
     setupModeSelector();
 
@@ -1387,14 +1231,13 @@ Generate 6 fun, specific reading topics based on these interests.`;
     const list = $("#story-list");
     list.innerHTML = "";
 
-    if (stories.length === 0 && !hasAPIKey()) {
+    if (stories.length === 0) {
       list.innerHTML = `
         <div style="text-align:center;padding:40px 20px;">
           <p style="font-size:20px;margin-bottom:16px;font-weight:600;">No stories yet for "${topicLabel}"</p>
           <p style="font-size:16px;color:var(--text-light);margin-bottom:24px;">
-            Add an AI key in Settings to create stories about anything!
+            Tap the + button below to generate stories!
           </p>
-          <button class="primary-btn" onclick="document.getElementById('open-settings').click()">Open Settings</button>
         </div>
       `;
     }
@@ -1523,11 +1366,6 @@ Generate 6 fun, specific reading topics based on these interests.`;
 
   // Prompt modal for generating a single story within an existing topic
   function showGeneratePrompt(topicId, topicLabel, existingStories) {
-    if (!hasAPIKey()) {
-      showAPIKeyPrompt();
-      return;
-    }
-
     const existingTitles = existingStories.map(s => s.title).join(", ");
 
     const overlay = document.createElement("div");
@@ -1656,21 +1494,6 @@ Generate 6 fun, specific reading topics based on these interests.`;
   }
 
   async function callAISingle(topicLabel, level, subtopic, existingTitles) {
-    // Try Edge Function first
-    if (sb && sbUser) {
-      try {
-        const parsed = await callEdgeFunction({ mode: "single", topic: topicLabel, level, subtopic, existingTitles });
-        return { title: parsed.title, content: parsed.content, words: parsed.words, quiz: parsed.quiz };
-      } catch (edgeErr) {
-        if (!state.settings.apiKey) throw edgeErr;
-        console.warn("Edge Function failed, falling back to direct call:", edgeErr.message);
-      }
-    }
-
-    // Fallback: direct API call
-    const provider = state.settings.apiProvider || "openai";
-    const apiKey = state.settings.apiKey;
-
     let levelRules;
     if (level === 1) {
       levelRules = `LEVEL 1 — 2nd Grade Reading Level
@@ -1717,74 +1540,16 @@ Respond with ONLY this JSON:
 
     const userPrompt = `Write a ${level === 1 ? "2nd grade (90-100 words)" : "3rd grade (130-150 words)"} reading passage about ${topicLabel}${subtopic ? `, focusing on: ${subtopic}` : ""}.`;
 
-    let text;
-
-    if (provider === "openai") {
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          temperature: 0.7,
-          max_tokens: 2000,
-          response_format: { type: "json_object" },
-        }),
-      });
-
-      if (!response.ok) {
-        const errBody = await response.text();
-        let errMsg = `OpenAI API error (${response.status})`;
-        try { const j = JSON.parse(errBody); if (j.error?.message) errMsg = j.error.message; } catch (_) {}
-        throw new Error(errMsg);
-      }
-
-      const data = await response.json();
-      text = data.choices[0].message.content;
-    } else if (provider === "anthropic") {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5-20250929",
-          max_tokens: 2000,
-          system: systemPrompt,
-          messages: [{ role: "user", content: userPrompt }],
-        }),
-      });
-
-      if (!response.ok) {
-        const errBody = await response.text();
-        let errMsg = `Anthropic API error (${response.status})`;
-        try { const j = JSON.parse(errBody); if (j.error?.message) errMsg = j.error.message; } catch (_) {}
-        throw new Error(errMsg);
-      }
-
-      const data = await response.json();
-      text = data.content[0].text;
-    }
+    const text = await callServerAI(
+      [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
+      { max_tokens: 2000, temperature: 0.7 }
+    );
 
     return parseStoryJSON(text);
   }
 
   // Bulk generation for new custom topics (generates 6 stories at once)
   async function generateStory(topicId, topicLabel) {
-    if (!hasAPIKey()) {
-      showAPIKeyPrompt();
-      return;
-    }
-
     // Show loading state
     const loadingOverlay = document.createElement("div");
     loadingOverlay.className = "level-up-overlay";
@@ -1858,24 +1623,6 @@ Respond with ONLY this JSON:
     }
   }
 
-  function showAPIKeyPrompt() {
-    const overlay = document.createElement("div");
-    overlay.className = "level-up-overlay";
-    overlay.innerHTML = `
-      <div class="level-up-card">
-        <span class="level-star">🔑</span>
-        <div class="level-text" style="font-size:22px;">Set Up Story Maker</div>
-        <div class="level-sub" style="font-size:15px;line-height:1.5;">
-          To create stories about anything, a parent needs to add an API key in Settings.<br><br>
-          This uses OpenAI or Anthropic to write custom stories.
-        </div>
-        <button class="primary-btn" style="margin-right:8px;" onclick="document.getElementById('open-settings').click(); this.closest('.level-up-overlay').remove();">Open Settings</button>
-        <button class="primary-btn" style="background:var(--border);color:var(--text);box-shadow:0 4px 0 #ccc;margin-top:8px;" onclick="this.closest('.level-up-overlay').remove();">Cancel</button>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-  }
-
   function updateGenStatus(msg, pct) {
     const el = document.getElementById("gen-status");
     const fill = document.getElementById("gen-fill");
@@ -1884,25 +1631,6 @@ Respond with ONLY this JSON:
   }
 
   async function callAIBatch(topicLabel, level) {
-    // Try Edge Function first
-    if (sb && sbUser) {
-      try {
-        const parsed = await callEdgeFunction({ mode: "batch", topic: topicLabel, level });
-        if (parsed.stories && Array.isArray(parsed.stories)) {
-          return parsed.stories.map(s => ({ title: s.title, content: s.content, words: s.words, quiz: s.quiz }));
-        }
-        if (parsed.title) return [{ title: parsed.title, content: parsed.content, words: parsed.words, quiz: parsed.quiz }];
-        throw new Error("Unexpected response format from AI");
-      } catch (edgeErr) {
-        if (!state.settings.apiKey) throw edgeErr;
-        console.warn("Edge Function failed, falling back to direct call:", edgeErr.message);
-      }
-    }
-
-    // Fallback: direct API call
-    const provider = state.settings.apiProvider || "openai";
-    const apiKey = state.settings.apiKey;
-
     let levelRules, exampleStory;
 
     if (level === 1) {
@@ -1994,71 +1722,10 @@ Respond with ONLY this JSON structure:
 
     const userPrompt = `Write 3 different ${level === 1 ? "2nd grade" : "3rd grade"} reading level passages about: ${topicLabel}. Remember: each story must be ${level === 1 ? "90-100" : "130-150"} words with ${level === 1 ? "4" : "5"} full paragraphs.`;
 
-    let text;
-
-    if (provider === "openai") {
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          temperature: 0.7,
-          max_tokens: 6000,
-          response_format: { type: "json_object" },
-        }),
-      });
-
-      if (!response.ok) {
-        const errBody = await response.text();
-        console.error("API response:", errBody);
-        let errMsg = `OpenAI API error (${response.status})`;
-        try {
-          const errJson = JSON.parse(errBody);
-          if (errJson.error?.message) errMsg = errJson.error.message;
-        } catch (_) {}
-        throw new Error(errMsg);
-      }
-
-      const data = await response.json();
-      text = data.choices[0].message.content;
-    } else if (provider === "anthropic") {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5-20250929",
-          max_tokens: 6000,
-          system: systemPrompt,
-          messages: [{ role: "user", content: userPrompt }],
-        }),
-      });
-
-      if (!response.ok) {
-        const errBody = await response.text();
-        console.error("API response:", errBody);
-        let errMsg = `Anthropic API error (${response.status})`;
-        try {
-          const errJson = JSON.parse(errBody);
-          if (errJson.error?.message) errMsg = errJson.error.message;
-        } catch (_) {}
-        throw new Error(errMsg);
-      }
-
-      const data = await response.json();
-      text = data.content[0].text;
-    }
+    const text = await callServerAI(
+      [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
+      { max_tokens: 6000, temperature: 0.7 }
+    );
 
     return parseBatchJSON(text);
   }
@@ -2107,58 +1774,7 @@ Respond with ONLY this JSON structure:
   }
 
   function hasAPIKey() {
-    return state.settings.apiKey && state.settings.apiKey.trim().length > 0;
-  }
-
-  // --- Add API Settings UI ---
-  function addAPISettingsUI() {
-    const settingsBody = $(".settings-body");
-
-    const divider = document.createElement("div");
-    divider.style.cssText =
-      "border-top:2px solid var(--border);padding-top:20px;margin-top:4px;";
-    divider.innerHTML = `
-      <div style="font-size:13px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:16px;">
-        🔑 Story Generator (Parent Setup)
-      </div>
-      <div class="setting-group">
-        <label for="api-provider">AI Provider</label>
-        <select id="api-provider" style="padding:10px;border-radius:8px;border:2px solid var(--border);font-family:inherit;font-size:15px;background:white;">
-          <option value="openai" ${state.settings.apiProvider === "openai" ? "selected" : ""}>OpenAI</option>
-          <option value="anthropic" ${state.settings.apiProvider === "anthropic" ? "selected" : ""}>Anthropic (Claude)</option>
-        </select>
-      </div>
-      <div class="setting-group" style="margin-top:12px;">
-        <label for="api-key-input">API Key</label>
-        <input type="password" id="api-key-input" placeholder="Paste API key here"
-          value="${state.settings.apiKey || ""}"
-          style="padding:10px;border-radius:8px;border:2px solid var(--border);font-family:inherit;font-size:15px;width:100%;">
-        <span style="font-size:12px;color:var(--text-light);line-height:1.4;">
-          This lets your child create stories about any topic they want. Your key stays on this device only.
-        </span>
-      </div>
-    `;
-
-    settingsBody.appendChild(divider);
-
-    // Event listeners for API settings
-    setTimeout(() => {
-      const providerEl = $("#api-provider");
-      const keyEl = $("#api-key-input");
-
-      if (providerEl) {
-        providerEl.addEventListener("change", (e) => {
-          state.settings.apiProvider = e.target.value;
-          saveSettings();
-        });
-      }
-      if (keyEl) {
-        keyEl.addEventListener("input", (e) => {
-          state.settings.apiKey = e.target.value;
-          saveSettings();
-        });
-      }
-    }, 0);
+    return true; // API key is stored server-side in Vercel env var
   }
 
   // --- Voice Input / Topic via Speech ---
@@ -2262,16 +1878,10 @@ Respond with ONLY this JSON structure:
     if (generatedKeys.length > 0) {
       // Already have stories, just show them
       selectTopic(topicId);
-    } else if (hasAPIKey()) {
+    } else {
       // No stories yet, generate all 6
       state.currentTopic = topicId;
       generateStory(topicId, topicName);
-    } else {
-      // No API key, show the story list with just the generate button
-      state.currentTopic = topicId;
-      $("#stories-heading").textContent = `✨ ${topicName} Stories`;
-      renderStoryList([], topicId, topicName);
-      showScreen("stories");
     }
   }
 

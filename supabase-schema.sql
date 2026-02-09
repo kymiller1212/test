@@ -3,8 +3,7 @@
 -- Run this in Supabase Dashboard → SQL Editor → New Query
 -- ============================================================
 
--- Enable required extensions
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- No extensions needed (API key stored in Vercel env vars, not in DB)
 
 -- ============================================================
 -- 1. USER PROFILES
@@ -39,15 +38,12 @@ CREATE TABLE IF NOT EXISTS user_settings (
   background_color text DEFAULT '#FFF8E7',
   reading_ruler boolean DEFAULT false,
   syllable_helper boolean DEFAULT true,
-  api_key_encrypted text,
-  api_provider text DEFAULT 'openai',
   updated_at timestamptz DEFAULT now()
 );
 
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
 
--- Users can read their own settings but NOT the encrypted API key
--- (API key is only accessed server-side via Edge Function)
+-- Users can read/update their own settings
 CREATE POLICY "Users can read own settings"
   ON user_settings FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can insert own settings"
@@ -131,78 +127,7 @@ CREATE POLICY "Users can delete own topics"
   ON topic_preferences FOR DELETE USING (auth.uid() = user_id);
 
 -- ============================================================
--- 6. RPC: Store API Key (encrypts server-side)
--- Called from browser: supabase.rpc('store_api_key', { p_key: '...', p_provider: '...' })
--- ============================================================
-CREATE OR REPLACE FUNCTION store_api_key(p_key text, p_provider text)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  INSERT INTO user_settings (id, api_key_encrypted, api_provider, updated_at)
-  VALUES (
-    auth.uid(),
-    pgp_sym_encrypt(p_key, 'readbuddy-enc-2026-change-me'),
-    p_provider,
-    now()
-  )
-  ON CONFLICT (id) DO UPDATE SET
-    api_key_encrypted = pgp_sym_encrypt(p_key, 'readbuddy-enc-2026-change-me'),
-    api_provider = p_provider,
-    updated_at = now();
-END;
-$$;
-
--- ============================================================
--- 7. RPC: Decrypt API Key (only callable from service role / Edge Functions)
--- ============================================================
-CREATE OR REPLACE FUNCTION decrypt_api_key(p_user_id uuid)
-RETURNS text
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_key text;
-BEGIN
-  SELECT pgp_sym_decrypt(
-    api_key_encrypted::bytea,
-    'readbuddy-enc-2026-change-me'
-  ) INTO v_key
-  FROM user_settings
-  WHERE id = p_user_id AND api_key_encrypted IS NOT NULL;
-
-  RETURN v_key;
-END;
-$$;
-
--- Revoke direct access — only Edge Functions (service role) can call this
-REVOKE EXECUTE ON FUNCTION decrypt_api_key(uuid) FROM anon, authenticated;
-
--- ============================================================
--- 8. RPC: Check if user has an API key (safe for browser)
--- ============================================================
-CREATE OR REPLACE FUNCTION has_api_key()
-RETURNS boolean
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_has boolean;
-BEGIN
-  SELECT (api_key_encrypted IS NOT NULL) INTO v_has
-  FROM user_settings
-  WHERE id = auth.uid();
-
-  RETURN COALESCE(v_has, false);
-END;
-$$;
-
--- ============================================================
--- 9. Auto-create profile + settings + progress on signup
+-- 6. Auto-create profile + settings + progress on signup
 -- ============================================================
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS trigger
@@ -231,5 +156,5 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
--- Encryption key is hardcoded in store_api_key() and decrypt_api_key() above.
--- To change it, update the key string in both functions.
+-- API key is stored as a Vercel environment variable (OPENAI_API_KEY).
+-- No encryption functions needed in Supabase.
