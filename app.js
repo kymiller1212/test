@@ -807,8 +807,56 @@ Respond with ONLY this JSON:
     addSyncSettingsUI();
     setupModeSelector();
 
+    // Backfill word bank from previously-read stories (one-time migration for existing users)
+    seedWordBankFromReadStories();
+
     // Initialize Supabase — handles auth state and view routing
     initSupabase();
+  }
+
+  function seedWordBankFromReadStories() {
+    if (state.wordBank.length > 0) return; // Already has words, skip
+    if (state.storiesRead.length === 0) return; // No stories read yet
+
+    const existingWords = new Set();
+    const wordsToAdd = [];
+
+    state.storiesRead.forEach(storyId => {
+      let story = null;
+
+      // Check generated stories first (they use their own key as id)
+      if (state.generatedStories[storyId]) {
+        story = state.generatedStories[storyId];
+      } else {
+        // Built-in stories have ids like "ohio-state:0", "ohio-state:1", etc.
+        const match = storyId.match(/^(.+):(\d+)$/);
+        if (match) {
+          const topicId = match[1];
+          const idx = parseInt(match[2]);
+          // Get all stories for this topic and pick by index
+          const topicStories = STORIES.filter(s => s.topic === topicId);
+          if (topicStories[idx]) story = topicStories[idx];
+          // Also check all STORIES by global index
+          if (!story) story = STORIES[idx];
+        }
+      }
+
+      if (story && story.words) {
+        story.words.forEach(w => {
+          const clean = w.toLowerCase().trim();
+          if (clean && !existingWords.has(clean)) {
+            existingWords.add(clean);
+            wordsToAdd.push({ word: clean, topic: story.topic || "unknown", learnedAt: new Date().toISOString() });
+          }
+        });
+      }
+    });
+
+    if (wordsToAdd.length > 0) {
+      state.wordBank = wordsToAdd;
+      localStorage.setItem("rb_word_bank", JSON.stringify(state.wordBank));
+      saveWordBankToCloud();
+    }
   }
 
   // --- Streak Tracking ---
@@ -2153,7 +2201,7 @@ Respond with ONLY this JSON structure:
     // Reset reading mode to normal
     resetMode();
 
-    // Mark as read
+    // Mark as read and add story words to word bank
     const storyId = story._id || `${story.topic}:0`;
     if (!state.storiesRead.includes(storyId)) {
       state.storiesRead.push(storyId);
@@ -2161,6 +2209,11 @@ Respond with ONLY this JSON structure:
       saveToCloud();
       addXP(10);
       buildTopicGrid(); // refresh badges
+
+      // Add all story vocabulary words to word bank
+      if (story.words && story.words.length > 0) {
+        addWordsToBank(story.words, story.topic || "unknown");
+      }
     }
 
     showScreen("reader");
