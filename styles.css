@@ -3053,6 +3053,93 @@ body {
   flex-shrink: 0;
 }
 
+/* Word Bank in Stats */
+.stats-word-bank-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 12px 0;
+  margin-top: 8px;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.wb-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wb-count-badge {
+  background: var(--green);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 20px;
+  min-width: 24px;
+  text-align: center;
+}
+.wb-chevron {
+  font-size: 12px;
+  color: var(--text-light);
+  transition: transform 0.3s ease;
+}
+.stats-word-bank-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.stats-word-bank-body.expanded {
+  max-height: 800px;
+}
+.wb-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 12px;
+}
+.wb-topic-group {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+.wb-topic-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+.wb-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.wb-word-chip {
+  background: #E8F5E9;
+  color: #2E7D32;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1.5px solid #C8E6C9;
+  font-family: var(--font);
+}
+.wb-quiz-btn {
+  width: 100%;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  font-size: 16px;
+  background: var(--green);
+  box-shadow: 0 4px 0 #2E7D32;
+}
+.wb-quiz-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #2E7D32;
+}
+
 /* Desktop: center the stats sheet */
 @media (min-width: 600px) {
   .stats-overlay {

@@ -35,6 +35,7 @@
     generatedStories: JSON.parse(localStorage.getItem("rb_generated") || "{}"),
     streak: JSON.parse(localStorage.getItem("rb_streak") || '{"current":0,"best":0,"lastDate":null,"history":[]}'),
     totalXPEarned: parseInt(localStorage.getItem("rb_total_xp") || "0"),
+    wordBank: JSON.parse(localStorage.getItem("rb_word_bank") || "[]"),
     readingMode: "normal",
     practiceRecognition: null,
     practiceListening: false,
@@ -120,19 +121,26 @@
   }
 
   async function handleAuthenticatedUser(user) {
-    // Check if user has completed onboarding
+    // Check if user has completed onboarding (locally or in DB)
+    const localOnboarded = localStorage.getItem("rb_onboarded") === "true";
+
     const { data: profile } = await sb
       .from("user_profiles")
       .select("onboarded")
       .eq("id", user.id)
       .single();
 
-    if (profile && profile.onboarded) {
+    if ((profile && profile.onboarded) || localOnboarded) {
       // Returning user — load data from Supabase and show app
+      if (localOnboarded && profile && !profile.onboarded) {
+        // Local onboarding done but not synced to DB — sync it now
+        await sb.from("user_profiles").update({ onboarded: true }).eq("id", user.id);
+        await migrateLocalStorageToCloud();
+      }
       await loadFromCloud();
       showAppView();
     } else {
-      // New user (profile auto-created by DB trigger) — show onboarding
+      // New user — show onboarding
       showOnboarding(user);
     }
   }
@@ -204,6 +212,7 @@
           streak_last_date: state.streak.lastDate,
           streak_history: state.streak.history,
           stories_read: state.storiesRead,
+          word_bank: state.wordBank,
           updated_at: new Date().toISOString()
         });
 
@@ -286,18 +295,20 @@
         state.streak.lastDate = progress.streak_last_date ?? state.streak.lastDate;
         state.streak.history = progress.streak_history ?? state.streak.history;
         state.storiesRead = progress.stories_read ?? state.storiesRead;
+        state.wordBank = progress.word_bank ?? state.wordBank;
         // Cache in localStorage
         localStorage.setItem("rb_xp", state.xp);
         localStorage.setItem("rb_level", state.level);
         localStorage.setItem("rb_total_xp", state.totalXPEarned);
         localStorage.setItem("rb_streak", JSON.stringify(state.streak));
         localStorage.setItem("rb_read", JSON.stringify(state.storiesRead));
+        localStorage.setItem("rb_word_bank", JSON.stringify(state.wordBank));
       }
 
       // Load settings
       const { data: settings } = await sb
         .from("user_settings")
-        .select("font_size, letter_spacing, word_spacing, line_height, reading_speed, background_color, reading_ruler, syllable_helper, api_provider")
+        .select("font_size, letter_spacing, word_spacing, line_height, reading_speed, background_color, reading_ruler, syllable_helper")
         .eq("id", sbUser.id)
         .single();
 
@@ -310,8 +321,6 @@
         state.settings.bgColor = settings.background_color ?? state.settings.bgColor;
         state.settings.rulerEnabled = settings.reading_ruler ?? state.settings.rulerEnabled;
         state.settings.syllableMode = settings.syllable_helper ?? state.settings.syllableMode;
-        state.settings.apiProvider = settings.api_provider ?? state.settings.apiProvider;
-        // API key is NOT loaded — it stays server-side only
         localStorage.setItem("rb_settings", JSON.stringify(state.settings));
         applySettings();
       }
@@ -453,9 +462,9 @@
       if (navBtn) { navBtn.textContent = "Open App"; navBtn.onclick = () => showAppView(); }
       ctaBtns.forEach(btn => { btn.textContent = "Back to Reading"; btn.onclick = () => showAppView(); });
     } else {
-      // Not signed in — trigger Google OAuth
-      if (navBtn) { navBtn.textContent = "Get Started"; navBtn.onclick = signInWithGoogle; }
-      ctaBtns.forEach(btn => { btn.textContent = "Get Started \u2014 It's Free"; btn.onclick = signInWithGoogle; });
+      // Not signed in — go straight to onboarding (no auth required)
+      if (navBtn) { navBtn.textContent = "Get Started"; navBtn.onclick = () => showOnboarding(null); }
+      ctaBtns.forEach(btn => { btn.textContent = "Get Started \u2014 It's Free"; btn.onclick = () => showOnboarding(null); });
     }
   }
 
@@ -934,6 +943,23 @@ Respond with ONLY this JSON:
         el.style.animationDelay = `${i * 0.02}s`;
       });
     }, 100);
+
+    // Word bank collapsible toggle
+    const wbToggle = document.getElementById("word-bank-toggle");
+    const wbBody = document.getElementById("word-bank-body");
+    const wbChevron = document.getElementById("wb-chevron");
+    if (wbToggle && wbBody) {
+      wbToggle.addEventListener("click", () => {
+        wbBody.classList.toggle("expanded");
+        if (wbChevron) wbChevron.textContent = wbBody.classList.contains("expanded") ? "▲" : "▼";
+      });
+    }
+
+    // Word bank quiz button
+    const wbQuizBtn = document.getElementById("wb-quiz-btn");
+    if (wbQuizBtn) {
+      wbQuizBtn.addEventListener("click", () => startWordBankQuiz());
+    }
   }
 
   function closeStatsScreen() {
@@ -1062,6 +1088,63 @@ Respond with ONLY this JSON:
             <span class="stats-topic-count">${t.read}/${t.total}</span>
           </div>
         `).join("")}
+      </div>
+
+      <!-- Word Bank -->
+      ${buildWordBankSection()}
+    `;
+  }
+
+  function buildWordBankSection() {
+    const bankWords = state.wordBank;
+    const count = bankWords.length;
+
+    if (count === 0) {
+      return `
+        <div class="stats-section-title">Word Bank</div>
+        <div class="stats-card" style="text-align:center;padding:24px 16px;">
+          <div style="font-size:28px;margin-bottom:8px;">📝</div>
+          <div style="font-size:15px;color:var(--text-light);line-height:1.5;">
+            Words you learn will show up here!<br>
+            Tap words while reading, then get them right in the review game.
+          </div>
+        </div>
+      `;
+    }
+
+    // Group words by topic
+    const byTopic = {};
+    bankWords.forEach(w => {
+      const topic = TOPICS.find(t => t.id === w.topic);
+      const label = topic ? topic.label : "Other";
+      const icon = topic ? topic.icon : "📝";
+      if (!byTopic[label]) byTopic[label] = { icon, words: [] };
+      byTopic[label].words.push(w.word);
+    });
+
+    let wordsHTML = "";
+    for (const [label, group] of Object.entries(byTopic)) {
+      wordsHTML += `<div class="wb-topic-group">
+        <div class="wb-topic-label">${group.icon} ${label}</div>
+        <div class="wb-words">${group.words.map(w => `<span class="wb-word-chip">${w}</span>`).join("")}</div>
+      </div>`;
+    }
+
+    return `
+      <div class="stats-word-bank-header" id="word-bank-toggle">
+        <div class="stats-section-title" style="margin-bottom:0;">Word Bank</div>
+        <div class="wb-header-right">
+          <span class="wb-count-badge">${count}</span>
+          <span class="wb-chevron" id="wb-chevron">▼</span>
+        </div>
+      </div>
+      <div class="stats-word-bank-body" id="word-bank-body">
+        <div class="wb-content">
+          ${wordsHTML}
+        </div>
+        <button class="primary-btn wb-quiz-btn" id="wb-quiz-btn">
+          Practice All ${count} Words
+        </button>
       </div>
     `;
   }
@@ -1623,6 +1706,19 @@ Respond with ONLY this JSON:
   }
 
   // Bulk generation for new custom topics (generates 6 stories at once)
+  // Check for cached stories from Supabase (any user who already generated this topic)
+  async function fetchCachedStories(topicId) {
+    try {
+      const response = await fetch(`/api/cached-stories?topic=${encodeURIComponent(topicId)}`);
+      if (!response.ok) return [];
+      const data = await response.json();
+      return data.stories || [];
+    } catch (err) {
+      console.warn("Cache check failed:", err);
+      return [];
+    }
+  }
+
   async function generateStory(topicId, topicLabel) {
     // Show loading state
     const loadingOverlay = document.createElement("div");
@@ -1632,15 +1728,49 @@ Respond with ONLY this JSON:
       <div class="level-up-card">
         <span class="level-star" style="animation: bounce-subtle 1s ease-in-out infinite;">✨</span>
         <div class="level-text" style="font-size:22px;">Creating stories...</div>
-        <div class="level-sub" id="gen-status">Generating Level 1 stories about ${topicLabel}</div>
+        <div class="level-sub" id="gen-status">Looking for existing stories...</div>
         <div class="gen-progress-bar"><div class="gen-progress-fill" id="gen-fill"></div></div>
       </div>
     `;
     document.body.appendChild(loadingOverlay);
 
     try {
-      const stories = [];
       const topicIcon = TOPICS.find(t => t.id === topicId)?.icon || "✨";
+
+      // Check cache first — reuse stories already generated by any user
+      const cached = await fetchCachedStories(topicId);
+      if (cached.length >= 3) {
+        updateGenStatus("Found existing stories!", 90);
+        const stories = cached.map((s, i) => ({
+          topic: topicId,
+          level: s.level,
+          icon: s.icon || topicIcon,
+          title: s.title,
+          content: s.content,
+          words: s.words,
+          quiz: s.quiz
+        }));
+
+        // Save to local state
+        stories.forEach((story, i) => {
+          const storyKey = `${topicId}:gen-${Date.now()}-${i}`;
+          story.id = storyKey;
+          state.generatedStories[storyKey] = story;
+          saveGeneratedStoryToCloud(storyKey, story);
+        });
+        localStorage.setItem("rb_generated", JSON.stringify(state.generatedStories));
+        saveToCloud();
+
+        updateGenStatus("All stories ready!", 100);
+        await new Promise(r => setTimeout(r, 400));
+        loadingOverlay.remove();
+        buildTopicGrid();
+        selectTopic(topicId);
+        return;
+      }
+
+      // No cache hit — generate fresh stories
+      const stories = [];
 
       // Generate 3 Level 1 stories (2nd grade)
       updateGenStatus("Generating Level 1 stories (2nd grade)...", 10);
@@ -2573,6 +2703,11 @@ Respond with ONLY this JSON structure:
     const xpEarned = gotCount * 3;
     if (xpEarned > 0) addXP(xpEarned);
 
+    // Add "Got It" words to the word bank (words they struggled with but now know)
+    if (gotCount > 0) {
+      addWordsToBank(review.gotIt, state.currentStory?.topic || "unknown");
+    }
+
     // Build results
     let icon, message, cls;
     if (pct === 1) {
@@ -2640,6 +2775,68 @@ Respond with ONLY this JSON structure:
     }
     // Re-show quiz body for next quiz
     $("#quiz-body").classList.remove("hidden");
+  }
+
+  // --- Word Bank ---
+  // Words the user struggled with (tapped in story) but then got right in word review.
+  // Stored as: [{ word: "string", topic: "topicId", learnedAt: ISO timestamp }]
+
+  function addWordsToBank(words, topicId) {
+    const existing = new Set(state.wordBank.map(w => w.word));
+    let added = 0;
+    for (const word of words) {
+      const clean = word.toLowerCase().trim();
+      if (clean && !existing.has(clean)) {
+        state.wordBank.push({ word: clean, topic: topicId, learnedAt: new Date().toISOString() });
+        existing.add(clean);
+        added++;
+      }
+    }
+    if (added > 0) {
+      localStorage.setItem("rb_word_bank", JSON.stringify(state.wordBank));
+      saveWordBankToCloud();
+    }
+  }
+
+  async function saveWordBankToCloud() {
+    if (!sb || !sbUser) return;
+    try {
+      await sb.from("user_progress").update({
+        word_bank: state.wordBank,
+        updated_at: new Date().toISOString()
+      }).eq("id", sbUser.id);
+    } catch (err) {
+      console.warn("Failed to save word bank:", err);
+    }
+  }
+
+  function startWordBankQuiz() {
+    if (state.wordBank.length === 0) return;
+
+    // Shuffle a copy of the word bank
+    const words = [...state.wordBank].map(w => w.word);
+    for (let i = words.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [words[i], words[j]] = [words[j], words[i]];
+    }
+
+    // Close the stats overlay
+    closeStatsScreen();
+
+    // Reuse the word review game with word bank words
+    state.tappedWords = new Set(words);
+    state.currentScreen = "quiz";
+
+    // Show quiz screen with word review
+    const quizBody = $("#quiz-body");
+    quizBody.classList.add("hidden");
+    quizBody.innerHTML = "";
+    $("#quiz-result").classList.add("hidden");
+    $("#quiz-done-btn").classList.add("hidden");
+    showScreen("quiz");
+
+    // Start the word review game
+    startWordReview();
   }
 
   // --- Reading Ruler ---

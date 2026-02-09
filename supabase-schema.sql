@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS user_progress (
   streak_last_date text,
   streak_history jsonb DEFAULT '[]'::jsonb,
   stories_read jsonb DEFAULT '[]'::jsonb,
+  word_bank jsonb DEFAULT '[]'::jsonb,
   updated_at timestamptz DEFAULT now()
 );
 
@@ -96,8 +97,8 @@ CREATE TABLE IF NOT EXISTS generated_stories (
 
 ALTER TABLE generated_stories ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can read own stories"
-  ON generated_stories FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Anyone can read stories"
+  ON generated_stories FOR SELECT USING (true);
 CREATE POLICY "Users can insert own stories"
   ON generated_stories FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can delete own stories"
