@@ -1106,6 +1106,9 @@ Respond with ONLY this JSON:
   }
 
   // --- Topic Grid ---
+  // Built-in topic IDs (from stories.js) — these can't be removed
+  const BUILTIN_TOPIC_IDS = new Set(TOPICS.map(t => t.id));
+
   function buildTopicGrid() {
     const grid = $("#topic-grid");
     grid.innerHTML = "";
@@ -1118,6 +1121,7 @@ Respond with ONLY this JSON:
       card.style.setProperty("--card-color", topic.color || "var(--blue)");
       card.style.animationDelay = `${idx * 0.06}s`;
 
+      const isCustom = !BUILTIN_TOPIC_IDS.has(topic.id);
       const readCount = state.storiesRead.filter(
         (id) => id.startsWith(topic.id + ":")
       ).length;
@@ -1130,6 +1134,7 @@ Respond with ONLY this JSON:
       const totalStories = totalForTopic + generatedForTopic;
 
       card.innerHTML = `
+        ${isCustom ? `<button class="topic-remove-btn" aria-label="Remove ${topic.label}" title="Remove topic">&times;</button>` : ""}
         <div class="topic-icon-wrap">
           <span class="topic-icon">${topic.icon}</span>
         </div>
@@ -1137,6 +1142,13 @@ Respond with ONLY this JSON:
         <span class="topic-stories-count">${totalStories} ${totalStories === 1 ? "story" : "stories"}</span>
         ${readCount > 0 ? `<span class="topic-badge">${readCount}</span>` : ""}
       `;
+
+      if (isCustom) {
+        card.querySelector(".topic-remove-btn").addEventListener("click", (e) => {
+          e.stopPropagation();
+          confirmRemoveTopic(topic.id, topic.label);
+        });
+      }
 
       card.addEventListener("click", () => selectTopic(topic.id));
       card.addEventListener("keydown", (e) => {
@@ -1155,6 +1167,67 @@ Respond with ONLY this JSON:
       if (hour < 12) greetEl.textContent = "Good Morning!";
       else if (hour < 17) greetEl.textContent = "Good Afternoon!";
       else greetEl.textContent = "Good Evening!";
+    }
+  }
+
+  function confirmRemoveTopic(topicId, topicLabel) {
+    const overlay = document.createElement("div");
+    overlay.className = "level-up-overlay";
+    overlay.innerHTML = `
+      <div class="level-up-card">
+        <span class="level-star">🗑️</span>
+        <div class="level-text" style="font-size:20px;">Remove "${topicLabel}"?</div>
+        <div class="level-sub" style="font-size:15px;line-height:1.5;">
+          This will remove the topic and all its generated stories. This can't be undone.
+        </div>
+        <div style="display:flex;gap:10px;margin-top:16px;justify-content:center;">
+          <button class="primary-btn" id="confirm-remove-topic" style="background:var(--red);box-shadow:0 4px 0 #b71c1c;">Remove</button>
+          <button class="primary-btn" style="background:var(--border);color:var(--text);box-shadow:0 4px 0 #ccc;" onclick="this.closest('.level-up-overlay').remove();">Cancel</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelector("#confirm-remove-topic").addEventListener("click", () => {
+      overlay.remove();
+      removeTopic(topicId);
+    });
+  }
+
+  async function removeTopic(topicId) {
+    // Remove from TOPICS array
+    const idx = TOPICS.findIndex(t => t.id === topicId);
+    if (idx !== -1) TOPICS.splice(idx, 1);
+
+    // Remove generated stories for this topic
+    const keysToRemove = Object.keys(state.generatedStories).filter(k => k.startsWith(topicId + ":"));
+    keysToRemove.forEach(k => delete state.generatedStories[k]);
+    localStorage.setItem("rb_generated", JSON.stringify(state.generatedStories));
+
+    // Remove from read history
+    state.storiesRead = state.storiesRead.filter(id => !id.startsWith(topicId + ":"));
+    localStorage.setItem("rb_read", JSON.stringify(state.storiesRead));
+
+    // Remove from user topics in localStorage
+    const userTopics = JSON.parse(localStorage.getItem("rb_user_topics") || "[]");
+    const filteredTopics = userTopics.filter(t => t.id !== topicId);
+    localStorage.setItem("rb_user_topics", JSON.stringify(filteredTopics));
+
+    // Remove from Supabase
+    if (sb && sbUser) {
+      try {
+        await sb.from("generated_stories").delete().eq("user_id", sbUser.id).like("story_key", topicId + ":%");
+        await sb.from("topic_preferences").delete().eq("user_id", sbUser.id).eq("topic_id", topicId);
+      } catch (err) {
+        console.warn("Failed to remove topic from cloud:", err);
+      }
+    }
+
+    saveToCloud();
+    buildTopicGrid();
+
+    // If we were viewing this topic's stories, go back to home
+    if (state.currentTopic === topicId) {
+      showScreen("home");
     }
   }
 
@@ -1468,6 +1541,7 @@ Respond with ONLY this JSON:
 
       state.generatedStories[storyKey] = story;
       localStorage.setItem("rb_generated", JSON.stringify(state.generatedStories));
+      saveGeneratedStoryToCloud(storyKey, story);
       saveToCloud();
 
       loadingOverlay.remove();
@@ -1589,11 +1663,12 @@ Respond with ONLY this JSON:
       }
       updateGenStatus("All stories created!", 100);
 
-      // Save all generated stories
+      // Save all generated stories (localStorage + Supabase)
       stories.forEach((story, i) => {
         const storyKey = `${topicId}:gen-${Date.now()}-${i}`;
         story.id = storyKey;
         state.generatedStories[storyKey] = story;
+        saveGeneratedStoryToCloud(storyKey, story);
       });
       localStorage.setItem("rb_generated", JSON.stringify(state.generatedStories));
       saveToCloud();
