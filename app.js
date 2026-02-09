@@ -59,72 +59,95 @@
     quiz: $("#screen-quiz"),
   };
 
-  // --- Firebase Cloud Sync ---
-  let firebaseDB = null;
-  let firebaseAuth = null;
-  let firebaseUser = null;
+  // --- Supabase Cloud Backend ---
+  let sb = null; // Supabase client
+  let sbUser = null; // Current authenticated user
   let syncDebounceTimer = null;
 
-  function getFirebaseConfig() {
-    // Check config.js first, then the inline READBUDDY_FIREBASE from index.html
-    if (typeof READBUDDY_CONFIG !== "undefined" && READBUDDY_CONFIG.firebase && READBUDDY_CONFIG.firebase.apiKey) {
-      return READBUDDY_CONFIG.firebase;
-    }
-    if (typeof READBUDDY_FIREBASE !== "undefined" && READBUDDY_FIREBASE.apiKey) {
-      return READBUDDY_FIREBASE;
+  function getSupabaseConfig() {
+    if (typeof READBUDDY_SUPABASE !== "undefined" && READBUDDY_SUPABASE.url && READBUDDY_SUPABASE.anonKey) {
+      return READBUDDY_SUPABASE;
     }
     return null;
   }
 
-  function isFirebaseConfigured() {
-    return getFirebaseConfig() !== null;
+  function isSupabaseConfigured() {
+    return getSupabaseConfig() !== null;
   }
 
-  function isMobileDevice() {
-    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  }
-
-  function setupAuthListener() {
-    // Auth listener runs silently in the background — no view routing.
-    // If user is signed in, load their cloud data. If not, do nothing.
-    firebaseAuth.onAuthStateChanged((user) => {
-      firebaseUser = user;
-      updateSyncUI();
-      if (user) {
-        loadFromCloud();
-      }
-    });
-  }
-
-  function initFirebase() {
-    const fbConfig = getFirebaseConfig();
-    if (!fbConfig) return;
+  async function initSupabase() {
+    const cfg = getSupabaseConfig();
+    if (!cfg) return;
     try {
-      if (!firebase.apps.length) {
-        firebase.initializeApp(fbConfig);
+      sb = supabase.createClient(cfg.url, cfg.anonKey);
+
+      // Check for existing session (returning user or post-OAuth redirect)
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) {
+        sbUser = session.user;
+        updateSyncUI();
+        await handleAuthenticatedUser(session.user);
+      } else {
+        // No session — show landing page for new visitors, app for onboarded
+        if (localStorage.getItem("rb_onboarded") === "true") {
+          showAppView();
+        } else {
+          showLandingPage();
+        }
       }
-      firebaseDB = firebase.firestore();
-      firebaseAuth = firebase.auth();
-      setupAuthListener();
+
+      // Listen for future auth changes (sign in, sign out, token refresh)
+      sb.auth.onAuthStateChange(async (event, session) => {
+        if (event === "SIGNED_IN" && session) {
+          sbUser = session.user;
+          updateSyncUI();
+          await handleAuthenticatedUser(session.user);
+        } else if (event === "SIGNED_OUT") {
+          sbUser = null;
+          updateSyncUI();
+          showLandingPage();
+        }
+      });
     } catch (e) {
-      console.warn("Firebase init failed:", e);
+      console.warn("Supabase init failed:", e);
+      // Fallback: show app if already onboarded
+      if (localStorage.getItem("rb_onboarded") === "true") {
+        showAppView();
+      } else {
+        showLandingPage();
+      }
     }
   }
 
-  // handleAuthenticatedUser is no longer used for view routing.
-  // Auth is background-only for cloud sync. See setupAuthListener().
+  async function handleAuthenticatedUser(user) {
+    // Check if user has completed onboarding
+    const { data: profile } = await sb
+      .from("user_profiles")
+      .select("onboarded")
+      .eq("id", user.id)
+      .single();
+
+    if (profile && profile.onboarded) {
+      // Returning user — load data from Supabase and show app
+      await loadFromCloud();
+      showAppView();
+    } else {
+      // New user (profile auto-created by DB trigger) — show onboarding
+      showOnboarding(user);
+    }
+  }
 
   function updateSyncUI() {
     const statusEl = document.getElementById("sync-status");
     const btnEl = document.getElementById("sync-auth-btn");
     if (!statusEl || !btnEl) return;
 
-    if (firebaseUser) {
-      const name = firebaseUser.displayName || firebaseUser.email || "Signed In";
+    if (sbUser) {
+      const name = sbUser.user_metadata?.full_name || sbUser.email || "Signed In";
       statusEl.innerHTML = `<span class="sync-user-name">${name}</span>`;
       btnEl.textContent = "Sign Out";
       btnEl.className = "sync-btn sync-btn-out";
-      btnEl.onclick = signOutFirebase;
+      btnEl.onclick = signOutSupabase;
     } else {
       statusEl.innerHTML = '<span class="sync-user-name">Not signed in</span>';
       btnEl.textContent = "Sign in with Google";
@@ -145,160 +168,280 @@
     setTimeout(() => { if (toast.parentNode) toast.remove(); }, 8000);
   }
 
-  function signInWithGoogle() {
-    if (!firebaseAuth) return;
-    const provider = new firebase.auth.GoogleAuthProvider();
-
-    if (isMobileDevice()) {
-      // Mobile (iOS/Android): use redirect — popups are unreliable on mobile Safari
-      console.log("[Auth] Mobile detected — using signInWithRedirect");
-      firebaseAuth.signInWithRedirect(provider);
-    } else {
-      // Desktop: use popup — avoids page reload
-      console.log("[Auth] Desktop detected — using signInWithPopup");
-      firebaseAuth.signInWithPopup(provider).then((result) => {
-        console.log("[Auth] signInWithPopup success:", result.user?.email);
-      }).catch((err) => {
-        console.error("[Auth] signInWithPopup error:", err.code, err.message);
-        if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
-          return; // User closed or duplicate popup
-        }
-        let msg = "Sign-in failed (" + err.code + "). Please try again.";
-        if (err.code === "auth/unauthorized-domain") {
-          msg = "This domain isn't authorized yet. Add it in Firebase Console > Authentication > Settings > Authorized domains.";
-        } else if (err.code === "auth/popup-blocked") {
-          // Fallback to redirect if popup is blocked
-          console.log("[Auth] Popup blocked, falling back to redirect");
-          firebaseAuth.signInWithRedirect(provider);
-          return;
-        }
-        showAuthError(msg);
-      });
+  async function signInWithGoogle() {
+    if (!sb) return;
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin + window.location.pathname
+      }
+    });
+    if (error) {
+      showAuthError("Sign-in failed: " + error.message);
     }
   }
 
-  function signOutFirebase() {
-    if (!firebaseAuth) return;
-    firebaseAuth.signOut();
+  async function signOutSupabase() {
+    if (!sb) return;
+    await sb.auth.signOut();
   }
 
+  // --- Save to Supabase (debounced) ---
   function saveToCloud() {
-    if (!firebaseDB || !firebaseUser) return;
+    if (!sb || !sbUser) return;
 
-    // Debounce saves to avoid excessive writes
     clearTimeout(syncDebounceTimer);
-    syncDebounceTimer = setTimeout(() => {
-      const data = {
-        xp: state.xp,
-        level: state.level,
-        totalXPEarned: state.totalXPEarned,
-        storiesRead: state.storiesRead,
-        streak: state.streak,
-        generatedStories: state.generatedStories,
-        settings: {
-          fontSize: state.settings.fontSize,
-          letterSpacing: state.settings.letterSpacing,
-          wordSpacing: state.settings.wordSpacing,
-          lineHeight: state.settings.lineHeight,
-          speed: state.settings.speed,
-          bgColor: state.settings.bgColor,
-          rulerEnabled: state.settings.rulerEnabled,
-          syllableMode: state.settings.syllableMode
-        },
-        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-      };
+    syncDebounceTimer = setTimeout(async () => {
+      try {
+        // Save progress
+        await sb.from("user_progress").upsert({
+          id: sbUser.id,
+          xp: state.xp,
+          level: state.level,
+          total_xp_earned: state.totalXPEarned,
+          streak_current: state.streak.current,
+          streak_best: state.streak.best,
+          streak_last_date: state.streak.lastDate,
+          streak_history: state.streak.history,
+          stories_read: state.storiesRead,
+          updated_at: new Date().toISOString()
+        });
 
-      firebaseDB
-        .collection("users")
-        .doc(firebaseUser.uid)
-        .set(data, { merge: true })
-        .catch((err) => console.warn("Cloud save failed:", err));
+        // Save settings (excluding API key — that goes through store_api_key RPC)
+        await sb.from("user_settings").upsert({
+          id: sbUser.id,
+          font_size: state.settings.fontSize,
+          letter_spacing: state.settings.letterSpacing,
+          word_spacing: state.settings.wordSpacing,
+          line_height: state.settings.lineHeight,
+          reading_speed: state.settings.speed,
+          background_color: state.settings.bgColor,
+          reading_ruler: state.settings.rulerEnabled,
+          syllable_helper: state.settings.syllableMode,
+          updated_at: new Date().toISOString()
+        });
+      } catch (err) {
+        console.warn("Cloud save failed:", err);
+      }
     }, 1500);
   }
 
-  function loadFromCloud() {
-    if (!firebaseDB || !firebaseUser) return;
+  // --- Save a generated story to Supabase ---
+  async function saveGeneratedStoryToCloud(storyKey, story) {
+    if (!sb || !sbUser) return;
+    try {
+      await sb.from("generated_stories").upsert({
+        user_id: sbUser.id,
+        story_key: storyKey,
+        topic: story.topic,
+        level: story.level,
+        title: story.title,
+        icon: story.icon,
+        content: story.content,
+        words: story.words,
+        quiz: story.quiz
+      }, { onConflict: "user_id,story_key" });
+    } catch (err) {
+      console.warn("Failed to save story to cloud:", err);
+    }
+  }
 
-    firebaseDB
-      .collection("users")
-      .doc(firebaseUser.uid)
-      .get()
-      .then((doc) => {
-        if (!doc.exists) {
-          // First sign-in: push local data to cloud
-          saveToCloud();
-          return;
-        }
-        const cloud = doc.data();
+  // --- Save user topics to Supabase ---
+  async function saveUserTopicsToCloud(topics) {
+    if (!sb || !sbUser) return;
+    try {
+      const rows = topics.map(t => ({
+        user_id: sbUser.id,
+        topic_id: t.id,
+        topic_name: t.label,
+        topic_icon: t.icon,
+        topic_color: t.color
+      }));
+      for (const row of rows) {
+        await sb.from("topic_preferences").upsert(row, { onConflict: "user_id,topic_id" });
+      }
+    } catch (err) {
+      console.warn("Failed to save topics to cloud:", err);
+    }
+  }
 
-        // Merge strategy: take whichever has more progress
-        const cloudXPTotal = cloud.totalXPEarned || 0;
-        const localXPTotal = state.totalXPEarned || 0;
+  // --- Load from Supabase ---
+  async function loadFromCloud() {
+    if (!sb || !sbUser) return;
 
-        if (cloudXPTotal >= localXPTotal) {
-          // Cloud has more progress — load it
-          state.xp = cloud.xp ?? state.xp;
-          state.level = cloud.level ?? state.level;
-          state.totalXPEarned = cloud.totalXPEarned ?? state.totalXPEarned;
-          localStorage.setItem("rb_xp", state.xp);
-          localStorage.setItem("rb_level", state.level);
-          localStorage.setItem("rb_total_xp", state.totalXPEarned);
-        }
+    try {
+      // Load progress
+      const { data: progress } = await sb
+        .from("user_progress")
+        .select("*")
+        .eq("id", sbUser.id)
+        .single();
 
-        // Merge stories read (union of both)
-        if (cloud.storiesRead && Array.isArray(cloud.storiesRead)) {
-          const merged = [...new Set([...state.storiesRead, ...cloud.storiesRead])];
-          state.storiesRead = merged;
-          localStorage.setItem("rb_read", JSON.stringify(merged));
-        }
+      if (progress) {
+        state.xp = progress.xp ?? state.xp;
+        state.level = progress.level ?? state.level;
+        state.totalXPEarned = progress.total_xp_earned ?? state.totalXPEarned;
+        state.streak.current = progress.streak_current ?? state.streak.current;
+        state.streak.best = progress.streak_best ?? state.streak.best;
+        state.streak.lastDate = progress.streak_last_date ?? state.streak.lastDate;
+        state.streak.history = progress.streak_history ?? state.streak.history;
+        state.storiesRead = progress.stories_read ?? state.storiesRead;
+        // Cache in localStorage
+        localStorage.setItem("rb_xp", state.xp);
+        localStorage.setItem("rb_level", state.level);
+        localStorage.setItem("rb_total_xp", state.totalXPEarned);
+        localStorage.setItem("rb_streak", JSON.stringify(state.streak));
+        localStorage.setItem("rb_read", JSON.stringify(state.storiesRead));
+      }
 
-        // Merge streak: take the one with higher best
-        if (cloud.streak) {
-          if ((cloud.streak.best || 0) > (state.streak.best || 0)) {
-            state.streak.best = cloud.streak.best;
+      // Load settings
+      const { data: settings } = await sb
+        .from("user_settings")
+        .select("font_size, letter_spacing, word_spacing, line_height, reading_speed, background_color, reading_ruler, syllable_helper, api_provider")
+        .eq("id", sbUser.id)
+        .single();
+
+      if (settings) {
+        state.settings.fontSize = settings.font_size ?? state.settings.fontSize;
+        state.settings.letterSpacing = settings.letter_spacing ?? state.settings.letterSpacing;
+        state.settings.wordSpacing = settings.word_spacing ?? state.settings.wordSpacing;
+        state.settings.lineHeight = settings.line_height ?? state.settings.lineHeight;
+        state.settings.speed = settings.reading_speed ?? state.settings.speed;
+        state.settings.bgColor = settings.background_color ?? state.settings.bgColor;
+        state.settings.rulerEnabled = settings.reading_ruler ?? state.settings.rulerEnabled;
+        state.settings.syllableMode = settings.syllable_helper ?? state.settings.syllableMode;
+        state.settings.apiProvider = settings.api_provider ?? state.settings.apiProvider;
+        // API key is NOT loaded — it stays server-side only
+        localStorage.setItem("rb_settings", JSON.stringify(state.settings));
+        applySettings();
+      }
+
+      // Load generated stories
+      const { data: stories } = await sb
+        .from("generated_stories")
+        .select("*")
+        .eq("user_id", sbUser.id);
+
+      if (stories && stories.length > 0) {
+        stories.forEach(s => {
+          state.generatedStories[s.story_key] = {
+            title: s.title,
+            content: s.content,
+            words: s.words,
+            quiz: s.quiz,
+            topic: s.topic,
+            level: s.level,
+            icon: s.icon,
+            id: s.story_key
+          };
+        });
+        localStorage.setItem("rb_generated", JSON.stringify(state.generatedStories));
+      }
+
+      // Load user topics
+      const { data: topics } = await sb
+        .from("topic_preferences")
+        .select("*")
+        .eq("user_id", sbUser.id);
+
+      if (topics && topics.length > 0) {
+        const userTopics = topics.map(t => ({
+          id: t.topic_id,
+          label: t.topic_name,
+          icon: t.topic_icon,
+          color: t.topic_color
+        }));
+        localStorage.setItem("rb_user_topics", JSON.stringify(userTopics));
+        userTopics.forEach(t => {
+          if (!TOPICS.find(existing => existing.id === t.id)) {
+            TOPICS.push(t);
           }
-          if ((cloud.streak.current || 0) > (state.streak.current || 0)) {
-            state.streak.current = cloud.streak.current;
-            state.streak.lastDate = cloud.streak.lastDate;
-          }
-          // Merge history (union)
-          if (cloud.streak.history) {
-            const mergedHistory = [...new Set([...(state.streak.history || []), ...cloud.streak.history])];
-            mergedHistory.sort();
-            state.streak.history = mergedHistory.slice(-30);
-          }
-          localStorage.setItem("rb_streak", JSON.stringify(state.streak));
-        }
+        });
+      }
 
-        // Merge generated stories (union)
-        if (cloud.generatedStories) {
-          Object.keys(cloud.generatedStories).forEach((key) => {
-            if (!state.generatedStories[key]) {
-              state.generatedStories[key] = cloud.generatedStories[key];
-            }
-          });
-          localStorage.setItem("rb_generated", JSON.stringify(state.generatedStories));
-        }
+      // Refresh UI
+      updateXPDisplay();
+      buildTopicGrid();
+    } catch (err) {
+      console.warn("Cloud load failed:", err);
+    }
+  }
 
-        // Load settings from cloud only if cloud has more progress
-        if (cloud.settings && cloudXPTotal >= localXPTotal) {
-          Object.assign(state.settings, cloud.settings);
-          localStorage.setItem("rb_settings", JSON.stringify(state.settings));
-          applySettings();
-        }
+  // --- One-time migration: push localStorage data to Supabase ---
+  async function migrateLocalStorageToCloud() {
+    if (!sb || !sbUser) return;
+    // Only migrate if there's local data but no cloud data yet
+    const { data: progress } = await sb
+      .from("user_progress")
+      .select("total_xp_earned")
+      .eq("id", sbUser.id)
+      .single();
 
-        // Refresh UI
-        updateXPDisplay();
-        buildTopicGrid();
+    if (progress && progress.total_xp_earned > 0) return; // Cloud already has data
 
-        // Push the merged state back to cloud
-        saveToCloud();
-      })
-      .catch((err) => console.warn("Cloud load failed:", err));
+    // Push local state to cloud
+    saveToCloud();
+
+    // Push generated stories
+    for (const [key, story] of Object.entries(state.generatedStories)) {
+      await saveGeneratedStoryToCloud(key, story);
+    }
+
+    // Push user topics
+    const savedTopics = JSON.parse(localStorage.getItem("rb_user_topics") || "[]");
+    if (savedTopics.length > 0) {
+      await saveUserTopicsToCloud(savedTopics);
+    }
+  }
+
+  // --- Store API key securely (encrypted server-side) ---
+  async function storeAPIKeyInCloud(key, provider) {
+    if (!sb || !sbUser) return;
+    try {
+      await sb.rpc("store_api_key", { p_key: key, p_provider: provider });
+    } catch (err) {
+      console.warn("Failed to store API key in cloud:", err);
+    }
+  }
+
+  // --- Check if user has API key in cloud ---
+  async function hasAPIKeyInCloud() {
+    if (!sb || !sbUser) return false;
+    try {
+      const { data } = await sb.rpc("has_api_key");
+      return !!data;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  // --- Call Edge Function for AI generation ---
+  async function callEdgeFunction(body) {
+    if (!sb) throw new Error("Not connected to Supabase");
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) throw new Error("Not signed in. Please sign in to generate stories.");
+
+    const cfg = getSupabaseConfig();
+    const response = await fetch(`${cfg.url}/functions/v1/generate-story`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${session.access_token}`,
+        "apikey": cfg.anonKey
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+      throw new Error(errData.error || `Generation failed (${response.status})`);
+    }
+
+    return response.json();
   }
 
   function addSyncSettingsUI() {
-    if (!isFirebaseConfigured()) return;
+    if (!isSupabaseConfigured()) return;
 
     const settingsBody = $(".settings-body");
     const divider = document.createElement("div");
@@ -340,25 +483,26 @@
     updateXPDisplay();
   }
 
-  function showOnboarding() {
+  function showOnboarding(user) {
     document.getElementById("landing-page").style.display = "none";
     document.getElementById("app").style.display = "none";
     document.getElementById("onboarding").style.display = "";
-    setupOnboarding();
+    setupOnboarding(user);
   }
 
   function updateLandingCTAs() {
     const navBtn = document.getElementById("lp-nav-cta");
     const ctaBtns = document.querySelectorAll(".lp-cta-btn");
 
-    if (navBtn) {
-      navBtn.textContent = "Get Started";
-      navBtn.onclick = () => showOnboarding();
+    if (sbUser) {
+      // Already signed in — go to app
+      if (navBtn) { navBtn.textContent = "Open App"; navBtn.onclick = () => showAppView(); }
+      ctaBtns.forEach(btn => { btn.textContent = "Back to Reading"; btn.onclick = () => showAppView(); });
+    } else {
+      // Not signed in — trigger Google OAuth
+      if (navBtn) { navBtn.textContent = "Get Started"; navBtn.onclick = signInWithGoogle; }
+      ctaBtns.forEach(btn => { btn.textContent = "Get Started \u2014 It's Free"; btn.onclick = signInWithGoogle; });
     }
-    ctaBtns.forEach(btn => {
-      btn.textContent = "Get Started \u2014 It's Free";
-      btn.onclick = () => showOnboarding();
-    });
   }
 
   // --- User Topics (persist custom topics across reloads) ---
@@ -382,17 +526,22 @@
   let obProvider = "openai";
   let obGeneratedTopics = [];
 
-  function setupOnboarding() {
+  function setupOnboarding(user) {
     obStep = 0;
     obProvider = "openai";
     obGeneratedTopics = [];
     updateObStep(0);
 
-    // Welcome step
+    // Welcome step — show user info from Supabase auth
     const avatarEl = document.getElementById("ob-avatar");
     const nameEl = document.getElementById("ob-welcome-name");
-    avatarEl.textContent = "👋";
-    nameEl.textContent = "Welcome to ReadBuddy!";
+    if (user && user.user_metadata?.avatar_url) {
+      avatarEl.innerHTML = `<img src="${user.user_metadata.avatar_url}" alt="Profile photo">`;
+    } else {
+      avatarEl.textContent = "👋";
+    }
+    const firstName = (user?.user_metadata?.full_name || "").split(" ")[0] || "Reader";
+    nameEl.textContent = `Welcome, ${firstName}!`;
 
     // Step navigation
     document.getElementById("ob-go-1").onclick = () => updateObStep(1);
@@ -431,7 +580,7 @@
     });
   }
 
-  function handleObAPIKey() {
+  async function handleObAPIKey() {
     const keyInput = obProvider === "openai"
       ? document.getElementById("ob-api-key-openai")
       : document.getElementById("ob-api-key-anthropic");
@@ -458,10 +607,11 @@
 
     errorEl.style.display = "none";
 
-    // Save the API key
-    state.settings.apiKey = key;
+    // Store API key encrypted in Supabase (never kept in browser after this)
     state.settings.apiProvider = obProvider;
+    state.settings.apiKey = key; // Temporarily hold for onboarding generation
     saveSettings();
+    await storeAPIKeyInCloud(key, obProvider);
 
     updateObStep(2);
   }
@@ -628,6 +778,25 @@
   }
 
   async function generateTopicNames(interests) {
+    // Try Edge Function first (API key stored server-side)
+    if (sb && sbUser) {
+      try {
+        const parsed = await callEdgeFunction({ mode: "topics", interests });
+        const topicColors = ["#E53935", "#1E88E5", "#43A047", "#FB8C00", "#8E24AA", "#00897B"];
+        return parsed.topics.map((t, i) => ({
+          id: t.name.toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, "-"),
+          label: t.name,
+          icon: t.icon,
+          color: topicColors[i % topicColors.length]
+        }));
+      } catch (edgeErr) {
+        // If Edge Function fails and we have a local key, fall through to direct call
+        if (!state.settings.apiKey) throw edgeErr;
+        console.warn("Edge Function failed, falling back to direct API call:", edgeErr.message);
+      }
+    }
+
+    // Fallback: direct API call (during onboarding when key is temporarily in memory)
     const provider = state.settings.apiProvider || "openai";
     const apiKey = state.settings.apiKey;
 
@@ -719,17 +888,28 @@ Generate 6 fun, specific reading topics based on these interests.`;
     }));
   }
 
-  function finishOnboarding() {
-    // Mark onboarded
+  async function finishOnboarding() {
+    // Mark onboarded locally
     localStorage.setItem("rb_onboarded", "true");
 
-    // Save to cloud with onboarded flag
-    if (firebaseDB && firebaseUser) {
-      const userTopics = JSON.parse(localStorage.getItem("rb_user_topics") || "[]");
-      firebaseDB.collection("users").doc(firebaseUser.uid).set({
-        onboarded: true,
-        userTopics: userTopics
-      }, { merge: true }).catch(err => console.warn("Failed to save onboarding status:", err));
+    // Save to Supabase
+    if (sb && sbUser) {
+      try {
+        await sb.from("user_profiles").update({ onboarded: true }).eq("id", sbUser.id);
+        // Save generated stories to cloud
+        for (const [key, story] of Object.entries(state.generatedStories)) {
+          await saveGeneratedStoryToCloud(key, story);
+        }
+        // Save user topics
+        const savedTopics = JSON.parse(localStorage.getItem("rb_user_topics") || "[]");
+        if (savedTopics.length > 0) {
+          await saveUserTopicsToCloud(savedTopics);
+        }
+        // Migrate any remaining localStorage data
+        await migrateLocalStorageToCloud();
+      } catch (err) {
+        console.warn("Failed to save onboarding data:", err);
+      }
     }
 
     saveToCloud();
@@ -773,14 +953,9 @@ Generate 6 fun, specific reading topics based on these interests.`;
     addAPISettingsUI();
     addSyncSettingsUI();
     setupModeSelector();
-    initFirebase();
 
-    // Route: if already onboarded, show app. Otherwise show landing page.
-    if (localStorage.getItem("rb_onboarded") === "true") {
-      showAppView();
-    } else {
-      showLandingPage();
-    }
+    // Initialize Supabase — handles auth state and view routing
+    initSupabase();
   }
 
   // --- Streak Tracking ---
@@ -1481,6 +1656,18 @@ Generate 6 fun, specific reading topics based on these interests.`;
   }
 
   async function callAISingle(topicLabel, level, subtopic, existingTitles) {
+    // Try Edge Function first
+    if (sb && sbUser) {
+      try {
+        const parsed = await callEdgeFunction({ mode: "single", topic: topicLabel, level, subtopic, existingTitles });
+        return { title: parsed.title, content: parsed.content, words: parsed.words, quiz: parsed.quiz };
+      } catch (edgeErr) {
+        if (!state.settings.apiKey) throw edgeErr;
+        console.warn("Edge Function failed, falling back to direct call:", edgeErr.message);
+      }
+    }
+
+    // Fallback: direct API call
     const provider = state.settings.apiProvider || "openai";
     const apiKey = state.settings.apiKey;
 
@@ -1697,6 +1884,22 @@ Respond with ONLY this JSON:
   }
 
   async function callAIBatch(topicLabel, level) {
+    // Try Edge Function first
+    if (sb && sbUser) {
+      try {
+        const parsed = await callEdgeFunction({ mode: "batch", topic: topicLabel, level });
+        if (parsed.stories && Array.isArray(parsed.stories)) {
+          return parsed.stories.map(s => ({ title: s.title, content: s.content, words: s.words, quiz: s.quiz }));
+        }
+        if (parsed.title) return [{ title: parsed.title, content: parsed.content, words: parsed.words, quiz: parsed.quiz }];
+        throw new Error("Unexpected response format from AI");
+      } catch (edgeErr) {
+        if (!state.settings.apiKey) throw edgeErr;
+        console.warn("Edge Function failed, falling back to direct call:", edgeErr.message);
+      }
+    }
+
+    // Fallback: direct API call
     const provider = state.settings.apiProvider || "openai";
     const apiKey = state.settings.apiKey;
 
