@@ -144,12 +144,12 @@ BEGIN
   INSERT INTO user_settings (id, api_key_encrypted, api_provider, updated_at)
   VALUES (
     auth.uid(),
-    pgp_sym_encrypt(p_key, current_setting('app.settings.encryption_key', true)),
+    pgp_sym_encrypt(p_key, 'readbuddy-enc-2026-change-me'),
     p_provider,
     now()
   )
   ON CONFLICT (id) DO UPDATE SET
-    api_key_encrypted = pgp_sym_encrypt(p_key, current_setting('app.settings.encryption_key', true)),
+    api_key_encrypted = pgp_sym_encrypt(p_key, 'readbuddy-enc-2026-change-me'),
     api_provider = p_provider,
     updated_at = now();
 END;
@@ -169,7 +169,7 @@ DECLARE
 BEGIN
   SELECT pgp_sym_decrypt(
     api_key_encrypted::bytea,
-    current_setting('app.settings.encryption_key', true)
+    'readbuddy-enc-2026-change-me'
   ) INTO v_key
   FROM user_settings
   WHERE id = p_user_id AND api_key_encrypted IS NOT NULL;
@@ -231,14 +231,5 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
--- ============================================================
--- IMPORTANT: After running this SQL, set the encryption key:
--- Go to Supabase Dashboard → Project Settings → Configuration →
--- Database Settings → and add this to "Extra connection string options":
---
--- Or run this SQL with your own secret key:
--- ALTER DATABASE postgres SET app.settings.encryption_key = 'your-secret-key-here';
---
--- Then restart the database (Settings → General → Restart)
--- ============================================================
-ALTER DATABASE postgres SET app.settings.encryption_key = 'readbuddy-enc-2026-change-me';
+-- Encryption key is hardcoded in store_api_key() and decrypt_api_key() above.
+-- To change it, update the key string in both functions.
