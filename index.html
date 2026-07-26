@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260209-E">
+  <link rel="stylesheet" href="styles.css?v=20260726-A">
 </head>
 <body>
   <!-- ===== LANDING PAGE ===== -->
@@ -430,7 +430,7 @@
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
         </button>
       </div>
-      <div class="build-stamp">Build: v2026.02.09-E</div>
+      <div class="build-stamp">Build: v2026.07.26-A</div>
     </header>
 
     <!-- ===== SCREEN: TOPIC PICKER ===== -->
@@ -621,19 +621,14 @@
   </div>
 
   <!-- Supabase JS Client -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Cloud sync is intentionally not configured. The Supabase project this
+       pointed at no longer exists, and this app runs on one iPad for one
+       reader, so there is no account to sign into: app.js opens straight into
+       the app instead of the landing page and sign-up flow. -->
 
-  <!-- Supabase project config (anon key is safe to expose — RLS protects data) -->
-  <script>
-    var READBUDDY_SUPABASE = {
-      url: "https://grptfqinfouolxrrvnaz.supabase.co",
-      anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdycHRmcWluZm91b2x4cnJ2bmF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1OTI0ODYsImV4cCI6MjA4NjE2ODQ4Nn0.NUAp55a0GJDuq8L01lTYWVVGYJwvvZg3L6nzYVH5HFA"
-    };
-  </script>
-
-  <script src="config.js?v=20260209-E"></script>
-  <script src="stories.js?v=20260209-E"></script>
-  <script src="app.js?v=20260209-E"></script>
+  <script src="config.js?v=20260726-A"></script>
+  <script src="stories.js?v=20260726-A"></script>
+  <script src="app.js?v=20260726-A"></script>
 
   <!-- Vercel Analytics -->
   <script defer src="/_vercel/insights/script.js"></script>

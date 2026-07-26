@@ -60,6 +60,11 @@
     quiz: $("#screen-quiz"),
   };
 
+  // This app is served from the family app store on a single iPad, for one
+  // reader. There is no account to sign into, so we skip the marketing page and
+  // the sign-up flow and open straight into the app as this reader.
+  const READER_NAME = "Noah";
+
   // --- Supabase Cloud Backend ---
   let sb = null; // Supabase client
   let sbUser = null; // Current authenticated user
@@ -810,6 +815,15 @@ Respond with ONLY this JSON:
     // Backfill word bank from previously-read stories (one-time migration for existing users)
     seedWordBankFromReadStories();
 
+    // No cloud backend configured means there is no account to sign into, so
+    // treat this device's reader as already signed in and skip straight to the
+    // app instead of the landing page and onboarding.
+    if (!isSupabaseConfigured()) {
+      localStorage.setItem("rb_onboarded", "true");
+      showAppView();
+      return;
+    }
+
     // Initialize Supabase — handles auth state and view routing
     initSupabase();
   }
@@ -1295,9 +1309,11 @@ Respond with ONLY this JSON:
     const hour = new Date().getHours();
     const greetEl = $("#hero-greeting");
     if (greetEl) {
-      if (hour < 12) greetEl.textContent = "Good Morning!";
-      else if (hour < 17) greetEl.textContent = "Good Afternoon!";
-      else greetEl.textContent = "Good Evening!";
+      let greeting;
+      if (hour < 12) greeting = "Good Morning";
+      else if (hour < 17) greeting = "Good Afternoon";
+      else greeting = "Good Evening";
+      greetEl.textContent = READER_NAME ? `${greeting}, ${READER_NAME}!` : `${greeting}!`;
     }
   }
 
